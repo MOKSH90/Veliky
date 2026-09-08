@@ -37,19 +37,23 @@ fi
 
 # If running remotely via curl or if repo not present locally, install into ~/.sentinel/app
 if [ ! -f "package.json" ] || [ ! -d "bin" ]; then
-    echo "📥 Downloading SENTINEL Workbench to $APP_DIR..."
+    echo "📥 Downloading SENTINEL Workbench files..."
     mkdir -p "$SENTINEL_HOME"
     if [ -d "$APP_DIR" ]; then
         rm -rf "$APP_DIR"
     fi
+    mkdir -p "$APP_DIR"
     
-    # Download latest repository archive or clone
-    if command -v git &> /dev/null; then
-        git clone --depth 1 https://github.com/MOKSH90/Sentinel.git "$APP_DIR" --quiet
+    # Fast tarball download with progress, fallback to git clone
+    if curl -fsSL "https://github.com/MOKSH90/Sentinel/archive/refs/heads/main.tar.gz" -o "$SENTINEL_HOME/sentinel.tar.gz" 2>/dev/null; then
+        echo "📦 Extracting SENTINEL package files..."
+        tar -xz -f "$SENTINEL_HOME/sentinel.tar.gz" -C "$APP_DIR" --strip-components=1
+        rm -f "$SENTINEL_HOME/sentinel.tar.gz"
     else
-        mkdir -p "$APP_DIR"
-        curl -fsSL https://github.com/MOKSH90/Sentinel/archive/refs/heads/main.tar.gz | tar -xz -C "$APP_DIR" --strip-components=1
+        echo "⚡ Downloading via git clone..."
+        git clone --depth 1 https://github.com/MOKSH90/Sentinel.git "$APP_DIR"
     fi
+    
     if [ -d "$APP_DIR/Sentinel-Web" ]; then
         cd "$APP_DIR/Sentinel-Web"
     else
