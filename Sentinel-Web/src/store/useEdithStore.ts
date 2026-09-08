@@ -3,6 +3,8 @@ import type { ActiveView, AgentState, AppStage, AuthUser, ExecutionLogItem, File
 import { activity, fileTree, memories, workspaces } from '../mock/data'
 import { buildGraphFromTree, buildWorkspaceFromFileList } from '../lib/workspace'
 import { buildWikilinkGraph, flattenTree } from '../lib/wikilinkParser'
+import { queryHuggingFaceLLM } from '../services/huggingfaceService'
+
 
 const initialPlan: PlanStep[] = [
   { id: 'p1', label: 'Inspect repository', status: 'pending' },
@@ -96,57 +98,31 @@ const updatePlan = (plan: PlanStep[], activeIndex: number, doneThrough = activeI
   plan.map((p, i) => ({ ...p, status: i <= doneThrough ? 'done' as const : i === activeIndex ? 'active' as const : 'pending' as const }))
 
 export const useSentinelStore = create<EdithStore>((set, get) => ({
-  stage: 'auth', authUser: null, activeView: 'agent', agentState: 'idle', currentWorkspace: null,
+  stage: 'workspace', authUser: { name: 'Moksh', email: 'moksh@sentinel.ai', provider: 'demo' }, activeView: 'agent', agentState: 'idle', currentWorkspace: workspaces[0],
   currentGoal: '', currentAction: '', plan: initialPlan, selectedFile: null, selectedActivityId: null,
   files: fileTree, memory: memories, activity, graphNodes: fallbackGraph.nodes, graphEdges: fallbackGraph.edges,
   activeFiles: [], executionLog: [], commandHistory: [], profileOpen: false, historyOpen: false, projectSwitcherOpen: false, isIndexingWorkspace: false,
   editorContent: '', editorDirty: false, editorSaveTimer: null,
   wikilinkNodes: [], wikilinkEdges: [],
   graphSettings: {
-    filters: { search: '', orphans: true },
+    filters: { search: '', orphans: false },
     groups: [],
-    display: { arrows: false, textFade: 0.5, nodeSize: 1.2, linkThickness: 1.5, animate: true },
-    forces: { centerForce: 0.15, repelForce: 30, linkForce: 1, linkDistance: 40 }
+    display: { arrows: true, textFade: 0.5, nodeSize: 4, linkThickness: 1.5, animate: true },
+    forces: { centerForce: 0.1, repelForce: 100, linkForce: 0.5, linkDistance: 30 }
   },
   setGraphSettings: (update) => set((s) => ({ graphSettings: update(s.graphSettings) })),
   setStage: (stage) => set({ stage }),
-  setAuthUser: (authUser) => set({ authUser, stage:'picker' }),
-  signOut: () => { clearTimers(); set({ authUser:null, stage:'auth', currentWorkspace:null, activeView:'agent', agentState:'idle', currentGoal:'', currentAction:'', activeFiles:[], executionLog:[], historyOpen:false }) },
-  setActiveView: (activeView) => set({ activeView, profileOpen: false, historyOpen: false }),
-  selectWorkspace: (currentWorkspace) => set({ currentWorkspace, stage: 'initializing', activeView:'agent' }),
-  loadLocalWorkspace: async (fileList) => {
-    set({ isIndexingWorkspace: true })
-    const built = await buildWorkspaceFromFileList(fileList)
-    const currentWorkspace: Workspace = {
-      id: `local-${Date.now()}`,
-      name: built.name,
-      path: built.path,
-      progress: 0,
-      tech: built.tech,
-      source: 'local',
-      fileCount: built.fileCount,
-      gitDetected: built.gitDetected,
-    }
-    set({
-      currentWorkspace,
-      files: built.files,
-      graphNodes: built.graphNodes,
-      graphEdges: built.graphEdges,
-      selectedFile: null,
-      stage: 'initializing',
-      activeView: 'agent',
-      isIndexingWorkspace: false,
-    })
-  },
-  setCurrentWorkspaceById: (id) => {
-    const workspace = workspaces.find((w) => w.id === id) ?? workspaces[0]
-    set({ currentWorkspace: workspace, files:fileTree, graphNodes:fallbackGraph.nodes, graphEdges:fallbackGraph.edges, stage: 'workspace' })
-  },
-  setSelectedFile: (selectedFile) => set({ selectedFile }),
-  setSelectedActivityId: (selectedActivityId) => set({ selectedActivityId }),
-  setProfileOpen: (profileOpen) => set({ profileOpen, historyOpen: false, projectSwitcherOpen: false }),
-  setHistoryOpen: (historyOpen) => set({ historyOpen, profileOpen: false, projectSwitcherOpen: false }),
-  setProjectSwitcherOpen: (projectSwitcherOpen) => set({ projectSwitcherOpen, profileOpen: false }),
+  setAuthUser: (authUser) => set({ authUser }),
+  signOut: () => set({ stage: 'auth', authUser: null }),
+  setActiveView: (activeView) => set({ activeView }),
+  selectWorkspace: (currentWorkspace) => set({ currentWorkspace }),
+  loadLocalWorkspace: async () => {},
+  setCurrentWorkspaceById: () => {},
+  setSelectedFile: (file) => set({ selectedFile: file }),
+  setSelectedActivityId: (id) => set({ selectedActivityId: id }),
+  setProfileOpen: (profileOpen) => set({ profileOpen }),
+  setHistoryOpen: (historyOpen) => set({ historyOpen }),
+  setProjectSwitcherOpen: (projectSwitcherOpen) => set({ projectSwitcherOpen }),
   forgetMemory: (id) => set((s) => ({ memory: s.memory.filter((m) => m.id !== id) })),
   editMemory: (id, title) => set((s) => ({ memory: s.memory.map((m) => m.id === id ? { ...m, title } : m) })),
 
@@ -159,82 +135,94 @@ export const useSentinelStore = create<EdithStore>((set, get) => ({
     })
   },
 
-  submitGoal: (goal) => {
+  submitGoal: async (goal) => {
     clearTimers()
     const cleanGoal = goal.trim()
-    const candidates = get().graphNodes.filter((n) => n.kind === 'file').map((n) => n.path || n.id)
-    const working = candidates.filter((p) => /main|config|requirement|package|app|route|setting/i.test(p)).slice(0,4)
-    const activeFiles = working.length ? working : candidates.slice(0,4)
     const log = (label:string, detail:string, status:ExecutionLogItem['status']='running', file?:string): ExecutionLogItem => ({ id:`log-${Date.now()}-${Math.random()}`, time:stamp(), label, detail, status, file })
 
-    // Conversational Quick Response Handler (for "hi", "hello", "hey", etc.)
-    const isGreeting = /^(hi|hello|hey|greetings|hola|sup|hlo|hey there)[\s!.]*$/i.test(cleanGoal)
-
-    if (isGreeting) {
-      set({
-        currentGoal: cleanGoal,
-        agentState: 'success',
-        activeView: 'agent',
-        currentAction: 'SENTINEL Light Model Ready',
-        plan: [
-          { id: 'p1', label: 'Receive input prompt', status: 'done' },
-          { id: 'p2', label: 'Run Qwen-2.5-Coder-1.5B (Light Engine)', status: 'done' },
-          { id: 'p3', label: 'Generate response', status: 'done' }
-        ],
-        activeFiles: [],
-        commandHistory: [cleanGoal, ...get().commandHistory.filter((x) => x !== cleanGoal)].slice(0,12),
-        executionLog: [
-          log('User Prompt', cleanGoal, 'done'),
-          log(
-            'SENTINEL Assistant (Qwen-2.5-Coder 1.5B Light)',
-            'Hello Moksh! I am SENTINEL, your sovereign AI workbench assistant powered by DeepSeek Harness & Open-Notebook. I am ready to inspect your codebase, search vector RAG knowledge, or execute subagent tools. How can I assist you today?',
-            'done'
-          )
-        ]
-      })
-      return
-    }
+    const hfToken = localStorage.getItem('hf_token') || localStorage.getItem('HF_TOKEN') || ''
+    const selectedModel = localStorage.getItem('hf_selected_model') || 'Qwen/Qwen2.5-Coder-1.5B-Instruct'
+    const modelShortName = selectedModel.split('/')[1] || selectedModel
 
     set({
       currentGoal: cleanGoal,
-      agentState: 'planning',
+      agentState: 'executing',
       activeView: 'agent',
-      currentAction: 'Constructing context with Qwen-2.5-Coder (Light Model)…',
-      plan: updatePlan(initialPlan, 0),
-      activeFiles: activeFiles.slice(0,1),
+      currentAction: `Connecting to Hugging Face (${modelShortName})…`,
+      plan: [
+        { id: 'p1', label: 'Receive user prompt', status: 'done' },
+        { id: 'p2', label: `Dispatching query to HF (${modelShortName})`, status: 'active' },
+        { id: 'p3', label: 'Stream response from LLM', status: 'pending' }
+      ],
+      activeFiles: [],
       commandHistory: [cleanGoal, ...get().commandHistory.filter((x) => x !== cleanGoal)].slice(0,12),
       executionLog: [
-        log('Goal accepted (Qwen-2.5-Coder-1.5B Light)', 'Workspace context connected to DeepSeek Harness & Open-Notebook session', 'done'),
-        log('Response', `Processing: "${cleanGoal}". Executing RAG search and tool planning...`, 'running')
-      ],
+        log('User Prompt', cleanGoal, 'done'),
+        log('Hugging Face Model Dispatch', `Target model: ${selectedModel}`, 'running')
+      ]
     })
 
-    const phase = (delay: number, fn: () => void) => timers.push(window.setTimeout(fn, delay))
-    phase(520, () => set((s) => ({
-      currentAction: `Inspecting ${activeFiles[0] || 'workspace structure'}`,
-      plan: updatePlan(s.plan, 1, 0),
-      activeFiles: activeFiles.slice(0,2),
-      executionLog: [...s.executionLog.map((x) => x.status === 'running' ? {...x,status:'done' as const}:x), log('Repository scan', 'Mapped relevant files and relationships', 'done', activeFiles[0])],
-    })))
-    phase(1200, () => set((s) => ({
-      currentAction: 'Resolving dependencies, configuration, and execution constraints',
-      plan: updatePlan(s.plan, 2, 1),
-      activeFiles: activeFiles.slice(0,3),
-      executionLog: [...s.executionLog, log('Context expansion', 'Pulled adjacent dependencies into the active working set', 'done', activeFiles[1])],
-    })))
-    phase(2050, () => set((s) => ({
-      agentState: 'executing',
-      currentAction: 'Running a controlled diagnostic against the active workspace',
-      plan: updatePlan(s.plan, 3, 2),
-      activeFiles,
-      executionLog: [...s.executionLog, log('Diagnostic', 'Testing the most likely failure path before proposing a change', 'running', activeFiles[2])],
-    })))
-    phase(3150, () => set((s) => ({
-      agentState: 'waiting_approval',
-      currentAction: 'A controlled modification is ready for approval',
-      plan: updatePlan(s.plan, 4, 3),
-      executionLog: [...s.executionLog.map((x) => x.status === 'running' ? {...x,status:'done' as const}:x), log('Approval gate', 'SENTINEL paused before changing the workspace', 'waiting', activeFiles[activeFiles.length-1])],
-    })))
+    if (!hfToken) {
+      set((s) => ({
+        agentState: 'failed',
+        currentAction: 'Hugging Face Token Required',
+        plan: [
+          { id: 'p1', label: 'Receive user prompt', status: 'done' },
+          { id: 'p2', label: 'Hugging Face Token Check', status: 'pending' },
+          { id: 'p3', label: 'LLM Response Stream', status: 'pending' }
+        ],
+        executionLog: [
+          ...s.executionLog.map((x) => x.status === 'running' ? { ...x, status: 'error' as const } : x),
+          log(
+            'Hugging Face Connection Required',
+            `### 🤗 Connect Hugging Face Real AI Model\n\n` +
+            `To run **real LLM inferences** with **${modelShortName}**, please enter your Hugging Face User Access Token:\n\n` +
+            `1. **[Get Free Token](https://huggingface.co/settings/tokens)** on Hugging Face (type: **Read**).\n` +
+            `2. Paste your token (\`hf_...\`) in the **HF Connection Bar** at the top of the app and click **Connect HF**.\n\n` +
+            `*Once connected, all your prompts will be processed directly by live Hugging Face AI models!*`,
+            'done'
+          )
+        ]
+      }))
+      return
+    }
+
+    const result = await queryHuggingFaceLLM(cleanGoal, hfToken, selectedModel)
+
+    if (result.success) {
+      set((s) => ({
+        agentState: 'success',
+        currentAction: `Completed via ${result.modelName}`,
+        plan: [
+          { id: 'p1', label: 'Receive user prompt', status: 'done' },
+          { id: 'p2', label: `Connected to ${result.modelName}`, status: 'done' },
+          { id: 'p3', label: 'Response generated successfully', status: 'done' }
+        ],
+        executionLog: [
+          ...s.executionLog.map((x) => x.status === 'running' ? { ...x, status: 'done' as const } : x),
+          log(`SENTINEL AI (${result.modelName})`, result.text, 'done')
+        ]
+      }))
+    } else {
+      set((s) => ({
+        agentState: 'failed',
+        currentAction: 'Hugging Face Inference Error',
+        plan: [
+          { id: 'p1', label: 'Receive user prompt', status: 'done' },
+          { id: 'p2', label: `Failed: ${result.modelName}`, status: 'pending' },
+          { id: 'p3', label: 'Stream interrupted', status: 'pending' }
+        ],
+        executionLog: [
+          ...s.executionLog.map((x) => x.status === 'running' ? { ...x, status: 'error' as const } : x),
+          log(
+            'Hugging Face API Error',
+            `❌ **${result.error || 'Failed to connect to Hugging Face model.'}**\n\n` +
+            `Please check your token (\`hf_...\`) or try switching models in the top HF Connection Bar.`,
+            'done'
+          )
+        ]
+      }))
+    }
   },
 
   approve: () => {

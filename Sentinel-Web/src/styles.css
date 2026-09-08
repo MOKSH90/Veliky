@@ -3,6 +3,31 @@
    Deep Sovereign Visual Language
    ========================================================================== */
 
+/* Custom High-Contrast Scrollbar for Canvas & Code Blocks */
+.custom-scrollbar::-webkit-scrollbar,
+.markdown-readme-canvas::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+.markdown-readme-canvas::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.markdown-readme-canvas::-webkit-scrollbar-thumb {
+  background: #00e5ff;
+  border-radius: 4px;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.4);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.markdown-readme-canvas::-webkit-scrollbar-thumb:hover {
+  background: #38bdf8;
+}
+
 /* Design System Tokens */
 :root {
   /* Primary Colors - Deep Crimson AI Aesthetic */
@@ -732,13 +757,16 @@ code, pre {
    ========================================================================== */
 
 .app-shell {
-  height: 100%;
-  display: grid;
-  grid-template-rows: 44px minmax(0, 1fr);
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
   background: var(--surface-bg, #1e1e1e);
   padding: 0;
   gap: 0;
+  overflow: hidden;
 }
+
 
 /* Top Bar */
 .topbar {
@@ -4278,8 +4306,10 @@ code, pre {
 
 @media (max-width: 1200px) {
   .app-shell {
-    grid-template-rows: 48px minmax(0, 1fr) 46px;
+    display: flex;
+    flex-direction: column;
   }
+
 
   .topbar {
     grid-template-columns: 170px 1fr 320px;
@@ -4602,10 +4632,12 @@ code, pre {
 
 @media (max-width: 640px) {
   .app-shell {
-    grid-template-rows: 44px minmax(0, 1fr) 42px;
+    display: flex;
+    flex-direction: column;
     padding: 6px;
     gap: 6px;
   }
+
 
   .topbar {
     grid-template-columns: 82px minmax(0, 1fr) 76px !important;
@@ -4874,10 +4906,12 @@ code, pre {
 
 @media (max-height: 480px) {
   .app-shell {
-    grid-template-rows: 44px minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     padding: 6px;
     gap: 6px;
   }
+
 
   .projectbar {
     display: none;
@@ -5639,3 +5673,18 @@ body .agent-view.idle .idle-copy {
 .vault-dialog-actions button.primary:hover { background: var(--accent-deep); color: #fff; }
 .vault-dialog-actions button:disabled { opacity: .4; pointer-events: none; }
 
+/* Hugging Face Connection Bar & Cyber-Glass UI Enhancements */
+.hf-connection-bar {
+  position: relative;
+  background: linear-gradient(135deg, rgba(8, 14, 26, 0.95) 0%, rgba(5, 8, 16, 0.98) 100%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(0, 229, 255, 0.15);
+  transition: all 0.25s ease;
+}
+
+.hf-connection-bar input:focus {
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.25);
+}
+
+.hf-connection-bar button:active {
+  transform: scale(0.97);
+}

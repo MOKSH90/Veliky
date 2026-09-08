@@ -51,11 +51,24 @@ program
     console.log(`🌐 Local Host Address    : http://localhost:${PORT}`);
     console.log(`🖥️  Platform System      : ${os.platform()} (${os.arch()})\n`);
 
+    // 0. Launch Local LLM Engine (Ollama)
+    console.log('🧠 Initializing Local LLM Engine (Ollama on Port 11434)...');
+    try {
+      spawn('ollama', ['serve'], {
+        stdio: 'ignore',
+        detached: true,
+        shell: true
+      }).unref();
+    } catch (err) {
+      // Ignore if ollama binary is not installed locally
+    }
+
     // 1. Launch Open-Notebook RAG engine if present
     const openNotebookDir = path.join(projectsRoot, 'open-notebook');
     if (fs.existsSync(openNotebookDir)) {
       console.log('📚 Initializing Open-Notebook RAG Engine (Port 8000)...');
-      spawn('python3', ['run_api.py'], {
+      const pyCmd = os.platform() === 'win32' ? 'python' : 'python3';
+      spawn(pyCmd, ['run_api.py'], {
         cwd: openNotebookDir,
         stdio: 'ignore',
         detached: true,

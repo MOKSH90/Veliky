@@ -1,22 +1,21 @@
-import { RotateCcw, TerminalSquare, Network, Activity, FileCode2, ArrowRight, CheckCircle2, LoaderCircle, ShieldAlert } from 'lucide-react'
+import { RotateCcw, TerminalSquare, Network, Activity, FileCode2, ArrowRight, CheckCircle2, LoaderCircle, ShieldAlert, Bot } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { lazy, Suspense } from 'react'
 import { CommandInput } from './CommandInput'
 import { PlanView } from './PlanView'
 import { ApprovalCard } from './ApprovalCard'
 import { VerificationView } from './VerificationView'
+import { MarkdownOutputCanvas } from './MarkdownOutputCanvas'
 import { useEdithStore } from '../../store/useEdithStore'
 
-const quickGoals=[
-  'Analyze Pump P-204 vibration levels and prepare an inspection summary.',
-  'Find abnormal pattern in maintenance reports and cross-check against SOP.',
-  'Inspect equipment P&ID drawing and calculate vibration percentage change.',
+const quickGoals = [
+  'Write a Python script to sort a list of numbers using quicksort with comments.',
+  'Explain async/await syntax in TypeScript with a practical example.',
+  'Design a REST API structure for a user authentication microservice.',
 ]
 
-const MobiusScene=lazy(()=>import('../mobius/MobiusScene').then((mod)=>({default:mod.MobiusScene})))
 
-import { KnowledgeSourceDrawer } from '../knowledge/KnowledgeSourceDrawer'
-import { DeepSeekAgentPanel } from './DeepSeekAgentPanel'
+const MobiusScene=lazy(()=>import('../mobius/MobiusScene').then((mod)=>({default:mod.MobiusScene})))
 
 export function AgentWorkspace(){
   const state=useEdithStore((s)=>s.agentState)
@@ -50,28 +49,74 @@ export function AgentWorkspace(){
         </div>
         <CommandInput/>
         <div className="quick-goals">{quickGoals.map((q,i)=><motion.button key={q} onClick={()=>submit(q)} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{delay:.08*i}}><span>{i+1}</span>{q}<ArrowRight size={12}/></motion.button>)}</div>
-
-        {/* Phase 1 & 2 Integration: RAG Vault & DeepSeek Harness Agent Panel */}
-        <div className="w-full max-w-5xl mx-auto space-y-6 pt-6 text-left">
-          <DeepSeekAgentPanel />
-          <KnowledgeSourceDrawer />
-        </div>
       </motion.div> : <motion.div key="work" className="execution-overlay" initial={{opacity:0,x:-18}} animate={{opacity:1,x:0}}>
-        <div className="execution-head"><div><span className="eyebrow">ACTIVE GOAL</span><h1>{goal}</h1><div className={`execution-state state-${state}`}><i/>{state.replace('_',' ')}</div></div><button className="quiet-btn" onClick={reset}><RotateCcw size={14}/>Reset</button></div>
+        <div className="execution-head">
+          <div>
+            <span className="eyebrow">ACTIVE GOAL</span>
+            <h1>{goal}</h1>
+            <div className={`execution-state state-${state}`}><i/>{state.replace('_',' ')}</div>
+          </div>
+          <button className="quiet-btn" onClick={reset}><RotateCcw size={14}/>Reset</button>
+        </div>
 
-        <details className="execution-stream-details">
+        {/* Prominent Agent Stream Log & Response Box */}
+        <details open className="execution-stream-details">
           <summary className="execution-summary">
             {state === 'success' || state === 'failed' ? <CheckCircle2 size={14} className="action-success"/> : <LoaderCircle size={14} className="spin action-running"/>}
-            <span>{state === 'success' ? 'Execution completed' : 'Executing actions...'} ({logs.length})</span>
+            <span>{state === 'success' ? 'Execution Completed' : 'Agent Executing...'} ({logs.length} events)</span>
           </summary>
-          <div className="execution-log-list">{logs.map((log)=><motion.div key={log.id} className={`execution-log ${log.status}`} initial={{opacity:0,x:-6}} animate={{opacity:1,x:0}}>
-          <time>{log.time}</time><span className="log-node"/><div><strong>{log.label}</strong><p>{log.detail}</p>{log.file&&<code><FileCode2 size={11}/>{log.file}</code>}</div>
-        </motion.div>)}</div>
-        </details>
+          <div className="execution-log-list space-y-4 pt-3">
+            {logs.map((log) => {
+              const isUserPrompt = log.label.includes('User Prompt')
+              const isAssistantResponse = log.label.includes('SENTINEL') || log.label.includes('Explanation') || log.label.includes('Assistant')
 
-        <div className="w-full max-w-4xl mx-auto space-y-4 pt-4 text-left">
-          <DeepSeekAgentPanel />
-        </div>
+              if (isUserPrompt) {
+                return (
+                  <motion.div
+                    key={log.id}
+                    className="bg-blue-950/50 border border-blue-500/40 rounded-xl p-4 text-slate-100 flex items-start space-x-3.5 shadow-lg"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg shrink-0 border border-blue-500/30">
+                      <TerminalSquare size={18} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">User Prompt</span>
+                        <time className="text-[11px] text-slate-400 font-mono">{log.time}</time>
+                      </div>
+                      <p className="text-sm font-medium text-slate-100 mt-1.5 whitespace-pre-wrap leading-relaxed">{log.detail}</p>
+                    </div>
+                  </motion.div>
+                )
+              }
+
+              if (isAssistantResponse) {
+                return (
+                  <motion.div key={log.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                    <MarkdownOutputCanvas label={log.label} detail={log.detail} time={log.time} file={log.file} />
+                  </motion.div>
+                )
+              }
+
+              return (
+                <motion.div key={log.id} className={`execution-log ${log.status}`} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}>
+                  <time>{log.time}</time>
+                  <span className="log-node" />
+                  <div>
+                    <strong className="flex items-center space-x-1.5 text-cyan-400">
+                      <Bot size={13} />
+                      <span>{log.label}</span>
+                    </strong>
+                    <p className="text-slate-200 mt-1 leading-relaxed">{log.detail}</p>
+                    {log.file && <code><FileCode2 size={11} />{log.file}</code>}
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        </details>
 
         {state==='waiting_approval'&&<ApprovalCard/>}
         {(state==='verifying'||state==='success')&&<VerificationView success={state==='success'}/>} 
