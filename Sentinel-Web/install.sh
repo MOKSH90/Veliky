@@ -59,6 +59,7 @@ if [ ! -f "package.json" ] || [ ! -d "bin" ]; then
     else
         cd "$APP_DIR"
     fi
+    APP_DIR="$(pwd)"
 else
     APP_DIR="$(pwd)"
 fi
@@ -69,7 +70,17 @@ npm install --silent
 echo "⚡ Linking 'sentinel' command to system PATH..."
 
 BIN_SRC="$APP_DIR/bin/sentinel.js"
-chmod +x "$BIN_SRC"
+if [ -f "$BIN_SRC" ]; then
+    chmod +x "$BIN_SRC"
+else
+    echo "⚠️ Warning: $BIN_SRC not found directly, searching in subfolders..."
+    FOUND_BIN="$(find "$SENTINEL_HOME/app" -name "sentinel.js" | head -n 1)"
+    if [ -n "$FOUND_BIN" ]; then
+        BIN_SRC="$FOUND_BIN"
+        APP_DIR="$(dirname "$(dirname "$BIN_SRC")")"
+        chmod +x "$BIN_SRC"
+    fi
+fi
 
 LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
