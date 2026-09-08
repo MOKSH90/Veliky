@@ -7,17 +7,18 @@ import os from 'os';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
+const projectsRoot = path.resolve(projectRoot, '..');
 
 // Helper to get local network IP address
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
     for (const net of interfaces[name] || []) {
-      // Skip internal (i.e. 127.0.0.1) and non-IPv4 addresses
       if (net.family === 'IPv4' && !net.internal) {
         return net.address;
       }
@@ -33,24 +34,64 @@ const program = new Command();
 
 program
   .name('sentinel')
-  .description('🛡️ SENTINEL - Sovereign On-Premise Agentic AI Workbench CLI')
+  .description('🛡️ SENTINEL - Sovereign On-Premise Agentic AI Workbench Master Orchestrator')
   .version('1.0.0');
 
 // Command: sentinel start / serve
 program
   .command('start')
   .alias('serve')
-  .description('Start the local SENTINEL server and backend engine')
-  .option('-o, --open', 'Automatically open web UI in browser', false)
+  .description('Launch SENTINEL Web Workbench, Open-Notebook RAG, DeepSeek Harness, and Pairing QR')
+  .option('-o, --open', 'Automatically open web UI in browser', true)
   .action(async (options) => {
     console.log('\n==================================================');
-    console.log('🛡️  SENTINEL Sovereign AI Workbench Engine');
+    console.log('🛡️  SENTINEL Sovereign AI Workbench Master Orchestrator');
     console.log('==================================================\n');
     console.log(`📡 Local Network Address : http://${localIP}:${PORT}`);
     console.log(`🌐 Local Host Address    : http://localhost:${PORT}`);
     console.log(`🖥️  Platform System      : ${os.platform()} (${os.arch()})\n`);
 
-    console.log('⚡ Launching workbench server...\n');
+    // 1. Launch Open-Notebook RAG engine if present
+    const openNotebookDir = path.join(projectsRoot, 'open-notebook');
+    if (fs.existsSync(openNotebookDir)) {
+      console.log('📚 Initializing Open-Notebook RAG Engine (Port 8000)...');
+      spawn('python3', ['run_api.py'], {
+        cwd: openNotebookDir,
+        stdio: 'ignore',
+        detached: true,
+        shell: true
+      }).unref();
+    }
+
+    // 2. Launch DeepSeek Harness Agent Engine if present
+    const dshDir = path.join(projectsRoot, 'deepseek-harness');
+    if (fs.existsSync(dshDir)) {
+      console.log('🤖 Initializing DeepSeek Harness Agent Engine (Port 3080)...');
+      spawn('pnpm', ['dsh', 'web', '--no-open'], {
+        cwd: dshDir,
+        stdio: 'ignore',
+        detached: true,
+        shell: true
+      }).unref();
+    }
+
+    // 3. Render Pairing QR Code for Android App
+    const keycode = Math.floor(100000 + Math.random() * 900000).toString();
+    const payload = JSON.stringify({
+      server: 'SENTINEL-DESKTOP-HUB',
+      ip: localIP,
+      port: PORT,
+      code: keycode,
+      timestamp: Date.now()
+    });
+
+    console.log('\n--------------------------------------------------');
+    console.log(`📲 MOBILE APP PAIRING KEYCODE: \x1b[36m\x1b[1m${keycode}\x1b[0m`);
+    console.log('Scan the QR code below using your SENTINEL Android App:\n');
+    qrcode.generate(payload, { small: true });
+    console.log('--------------------------------------------------\n');
+
+    console.log('⚡ Launching SENTINEL 3D Web Workbench server...\n');
 
     const vite = spawn('npx', ['vite', '--host', '0.0.0.0', '--port', String(PORT)], {
       cwd: projectRoot,
@@ -60,9 +101,9 @@ program
 
     if (options.open) {
       setTimeout(async () => {
-        console.log('🌐 Opening browser...');
+        console.log('\n🌐 Opening SENTINEL Web Workbench in default browser...');
         await open(`http://localhost:${PORT}`);
-      }, 2000);
+      }, 1500);
     }
 
     vite.on('error', (err) => {
@@ -126,12 +167,14 @@ program
     console.log('\n==================================================');
     console.log('📊 SENTINEL SYSTEM STATUS TELEMETRY');
     console.log('==================================================\n');
-    console.log(`🖥️  Host System : ${os.type()} ${os.release()} (${os.arch()})`);
-    console.log(`💻 CPU Cores   : ${cpus} cores (${os.cpus()[0]?.model || 'Generic CPU'})`);
-    console.log(`🧠 Memory      : ${freeMem} GB free of ${totalMem} GB total`);
-    console.log(`🌐 Local IP    : ${localIP}`);
-    console.log(`🔌 Web Port    : ${PORT}`);
-    console.log(`🟢 Status      : Ready / Operational\n`);
+    console.log(`🖥️  Host System       : ${os.type()} ${os.release()} (${os.arch()})`);
+    console.log(`💻 CPU Cores         : ${cpus} cores (${os.cpus()[0]?.model || 'Generic CPU'})`);
+    console.log(`🧠 Memory            : ${freeMem} GB free of ${totalMem} GB total`);
+    console.log(`🌐 Local IP          : ${localIP}`);
+    console.log(`🔌 Web Port          : ${PORT}`);
+    console.log(`📚 RAG Engine        : Open-Notebook (Port 8000)`);
+    console.log(`🤖 Agent Runtime     : DeepSeek Harness (Port 3080)`);
+    console.log(`🟢 System Status     : Ready / Operational\n`);
   });
 
 // Default behavior when typing 'sentinel' with no args

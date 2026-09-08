@@ -26,12 +26,16 @@ if [ ! -f "package.json" ] || [ ! -d "bin" ]; then
     
     # Download latest repository archive or clone
     if command -v git &> /dev/null; then
-        git clone --depth 1 https://github.com/your-username/sentinel-workbench.git "$APP_DIR" --quiet
+        git clone --depth 1 https://github.com/MOKSH90/Sentinel.git "$APP_DIR" --quiet
     else
         mkdir -p "$APP_DIR"
-        curl -fsSL https://github.com/your-username/sentinel-workbench/archive/refs/heads/main.tar.gz | tar -xz -C "$APP_DIR" --strip-components=1
+        curl -fsSL https://github.com/MOKSH90/Sentinel/archive/refs/heads/main.tar.gz | tar -xz -C "$APP_DIR" --strip-components=1
     fi
-    cd "$APP_DIR"
+    if [ -d "$APP_DIR/Sentinel-Web" ]; then
+        cd "$APP_DIR/Sentinel-Web"
+    else
+        cd "$APP_DIR"
+    fi
 else
     APP_DIR="$(pwd)"
 fi

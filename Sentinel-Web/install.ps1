@@ -22,14 +22,18 @@ if (-not (Test-Path "package.json") -or -not (Test-Path "bin")) {
     New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
     
     if (Get-Command git -ErrorAction SilentlyContinue) {
-        git clone --depth 1 https://github.com/your-username/sentinel-workbench.git $AppDir --quiet
+        git clone --depth 1 https://github.com/MOKSH90/Sentinel.git $AppDir --quiet
     } else {
         $ZipPath = Join-Path $env:TEMP "sentinel.zip"
-        Invoke-WebRequest -Uri "https://github.com/your-username/sentinel-workbench/archive/refs/heads/main.zip" -OutFile $ZipPath
+        Invoke-WebRequest -Uri "https://github.com/MOKSH90/Sentinel/archive/refs/heads/main.zip" -OutFile $ZipPath
         Expand-Archive -Path $ZipPath -DestinationPath $env:TEMP -Force
-        Move-Item -Path "$env:TEMP\sentinel-workbench-main\*" -Destination $AppDir -Force
+        Move-Item -Path "$env:TEMP\Sentinel-main\*" -Destination $AppDir -Force
     }
-    Set-Location -Path $AppDir
+    if (Test-Path (Join-Path $AppDir "Sentinel-Web")) {
+        Set-Location -Path (Join-Path $AppDir "Sentinel-Web")
+    } else {
+        Set-Location -Path $AppDir
+    }
 } else {
     $AppDir = Get-Location
 }

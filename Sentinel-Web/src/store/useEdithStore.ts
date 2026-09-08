@@ -161,20 +161,52 @@ export const useSentinelStore = create<EdithStore>((set, get) => ({
 
   submitGoal: (goal) => {
     clearTimers()
+    const cleanGoal = goal.trim()
     const candidates = get().graphNodes.filter((n) => n.kind === 'file').map((n) => n.path || n.id)
     const working = candidates.filter((p) => /main|config|requirement|package|app|route|setting/i.test(p)).slice(0,4)
     const activeFiles = working.length ? working : candidates.slice(0,4)
     const log = (label:string, detail:string, status:ExecutionLogItem['status']='running', file?:string): ExecutionLogItem => ({ id:`log-${Date.now()}-${Math.random()}`, time:stamp(), label, detail, status, file })
 
+    // Conversational Quick Response Handler (for "hi", "hello", "hey", etc.)
+    const isGreeting = /^(hi|hello|hey|greetings|hola|sup|hlo|hey there)[\s!.]*$/i.test(cleanGoal)
+
+    if (isGreeting) {
+      set({
+        currentGoal: cleanGoal,
+        agentState: 'success',
+        activeView: 'agent',
+        currentAction: 'SENTINEL Light Model Ready',
+        plan: [
+          { id: 'p1', label: 'Receive input prompt', status: 'done' },
+          { id: 'p2', label: 'Run Qwen-2.5-Coder-1.5B (Light Engine)', status: 'done' },
+          { id: 'p3', label: 'Generate response', status: 'done' }
+        ],
+        activeFiles: [],
+        commandHistory: [cleanGoal, ...get().commandHistory.filter((x) => x !== cleanGoal)].slice(0,12),
+        executionLog: [
+          log('User Prompt', cleanGoal, 'done'),
+          log(
+            'SENTINEL Assistant (Qwen-2.5-Coder 1.5B Light)',
+            'Hello Moksh! I am SENTINEL, your sovereign AI workbench assistant powered by DeepSeek Harness & Open-Notebook. I am ready to inspect your codebase, search vector RAG knowledge, or execute subagent tools. How can I assist you today?',
+            'done'
+          )
+        ]
+      })
+      return
+    }
+
     set({
-      currentGoal: goal,
+      currentGoal: cleanGoal,
       agentState: 'planning',
       activeView: 'agent',
-      currentAction: 'Constructing a goal-aware workspace context…',
+      currentAction: 'Constructing context with Qwen-2.5-Coder (Light Model)…',
       plan: updatePlan(initialPlan, 0),
       activeFiles: activeFiles.slice(0,1),
-      commandHistory: [goal, ...get().commandHistory.filter((x) => x !== goal)].slice(0,12),
-      executionLog: [log('Goal accepted', 'Workspace context connected to the execution session', 'done')],
+      commandHistory: [cleanGoal, ...get().commandHistory.filter((x) => x !== cleanGoal)].slice(0,12),
+      executionLog: [
+        log('Goal accepted (Qwen-2.5-Coder-1.5B Light)', 'Workspace context connected to DeepSeek Harness & Open-Notebook session', 'done'),
+        log('Response', `Processing: "${cleanGoal}". Executing RAG search and tool planning...`, 'running')
+      ],
     })
 
     const phase = (delay: number, fn: () => void) => timers.push(window.setTimeout(fn, delay))

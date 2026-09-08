@@ -15,6 +15,9 @@ const quickGoals=[
 
 const MobiusScene=lazy(()=>import('../mobius/MobiusScene').then((mod)=>({default:mod.MobiusScene})))
 
+import { KnowledgeSourceDrawer } from '../knowledge/KnowledgeSourceDrawer'
+import { DeepSeekAgentPanel } from './DeepSeekAgentPanel'
+
 export function AgentWorkspace(){
   const state=useEdithStore((s)=>s.agentState)
   const goal=useEdithStore((s)=>s.currentGoal)
@@ -43,17 +46,18 @@ export function AgentWorkspace(){
     <AnimatePresence mode="wait">
       {idle ? <motion.div key="idle" className="idle-content" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0,y:-10}}>
         <div className="idle-copy">
-          
           <h1>What do you want SENTINEL to accomplish?</h1>
-          
         </div>
         <CommandInput/>
         <div className="quick-goals">{quickGoals.map((q,i)=><motion.button key={q} onClick={()=>submit(q)} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{delay:.08*i}}><span>{i+1}</span>{q}<ArrowRight size={12}/></motion.button>)}</div>
+
+        {/* Phase 1 & 2 Integration: RAG Vault & DeepSeek Harness Agent Panel */}
+        <div className="w-full max-w-5xl mx-auto space-y-6 pt-6 text-left">
+          <DeepSeekAgentPanel />
+          <KnowledgeSourceDrawer />
+        </div>
       </motion.div> : <motion.div key="work" className="execution-overlay" initial={{opacity:0,x:-18}} animate={{opacity:1,x:0}}>
         <div className="execution-head"><div><span className="eyebrow">ACTIVE GOAL</span><h1>{goal}</h1><div className={`execution-state state-${state}`}><i/>{state.replace('_',' ')}</div></div><button className="quiet-btn" onClick={reset}><RotateCcw size={14}/>Reset</button></div>
-        
-        
-        
 
         <details className="execution-stream-details">
           <summary className="execution-summary">
@@ -65,6 +69,10 @@ export function AgentWorkspace(){
         </motion.div>)}</div>
         </details>
 
+        <div className="w-full max-w-4xl mx-auto space-y-4 pt-4 text-left">
+          <DeepSeekAgentPanel />
+        </div>
+
         {state==='waiting_approval'&&<ApprovalCard/>}
         {(state==='verifying'||state==='success')&&<VerificationView success={state==='success'}/>} 
         {state==='failed'&&<section className="failed-state"><strong>EXECUTION STOPPED</strong><span>No controlled changes were applied after rejection.</span></section>}
@@ -72,7 +80,5 @@ export function AgentWorkspace(){
         <section className="follow-up-composer" style={{ marginTop: "24px", borderBottom: "none" }}><div className="section-label">FOLLOW-UP COMMAND</div><CommandInput compact/></section>
       </motion.div>}
     </AnimatePresence>
-
-    
   </div>
 }
