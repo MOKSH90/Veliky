@@ -7,14 +7,33 @@ echo "🛡️  Installing SENTINEL Sovereign AI Workbench CLI"
 echo "=================================================="
 echo ""
 
-# Check for Node.js
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is required but not installed. Please install Node.js 18+ first."
-    exit 1
-fi
-
 SENTINEL_HOME="$HOME/.sentinel"
 APP_DIR="$SENTINEL_HOME/app"
+
+# Check for Node.js or auto-install portable runtime
+if ! command -v node &> /dev/null; then
+    echo "⚠️ Node.js not detected on this machine."
+    echo "⚡ Auto-installing portable Node.js runtime for $(uname -s) ($(uname -m))..."
+    
+    OS="$(uname -s)"
+    ARCH="$(uname -m)"
+    NODE_VER="v20.18.0"
+    
+    if [ "$OS" = "Darwin" ]; then
+        if [ "$ARCH" = "arm64" ]; then
+            NODE_DIST="node-${NODE_VER}-darwin-arm64"
+        else
+            NODE_DIST="node-${NODE_VER}-darwin-x64"
+        fi
+    else
+        NODE_DIST="node-${NODE_VER}-linux-x64"
+    fi
+    
+    mkdir -p "$SENTINEL_HOME/node"
+    curl -fsSL "https://nodejs.org/dist/${NODE_VER}/${NODE_DIST}.tar.gz" | tar -xz -C "$SENTINEL_HOME/node" --strip-components=1
+    export PATH="$SENTINEL_HOME/node/bin:$PATH"
+    echo "✅ Portable Node.js installed automatically!"
+fi
 
 # If running remotely via curl or if repo not present locally, install into ~/.sentinel/app
 if [ ! -f "package.json" ] || [ ! -d "bin" ]; then
@@ -67,6 +86,9 @@ fi
 if [ -n "$SHELL_PROFILE" ]; then
     if ! grep -q "$LOCAL_BIN" "$SHELL_PROFILE"; then
         echo "export PATH=\"$LOCAL_BIN:\$PATH\"" >> "$SHELL_PROFILE"
+    fi
+    if [ -d "$SENTINEL_HOME/node/bin" ] && ! grep -q "$SENTINEL_HOME/node/bin" "$SHELL_PROFILE"; then
+        echo "export PATH=\"$SENTINEL_HOME/node/bin:\$PATH\"" >> "$SHELL_PROFILE"
     fi
 fi
 
