@@ -177,6 +177,34 @@ program
     console.log(`🟢 System Status     : Ready / Operational\n`);
   });
 
+// Command: sentinel update
+program
+  .command('update')
+  .description('Pull latest SENTINEL updates from GitHub and reinstall')
+  .action(() => {
+    console.log('\n==================================================');
+    console.log('🔄 Updating SENTINEL to Latest Version from GitHub');
+    console.log('==================================================\n');
+    console.log('📥 Fetching latest code and dependencies...\n');
+
+    const installScript = os.platform() === 'win32' ? 'install.ps1' : 'install.sh';
+    const installerPath = path.join(projectRoot, installScript);
+
+    const updater = spawn(
+      os.platform() === 'win32' ? 'powershell' : 'bash',
+      [installerPath],
+      { stdio: 'inherit', shell: true }
+    );
+
+    updater.on('close', (code) => {
+      if (code === 0) {
+        console.log('\n✅ SENTINEL updated successfully to the latest version!\n');
+      } else {
+        console.error(`\n❌ Update failed with exit code ${code}. Please try running install script manually.\n`);
+      }
+    });
+  });
+
 // Default behavior when typing 'sentinel' with no args
 if (process.argv.length === 2) {
   process.argv.push('start');
