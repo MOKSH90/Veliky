@@ -1,0 +1,8 @@
+Date,Equipment,Measurement_Point,RMS_Velocity_mms,Temperature_C,ISO_Zone,Notes
+2026-01-15,P-204,NDE_Horizontal,2.8,48,Zone_B,Commissioning baseline post-overhaul
+2026-03-10,P-204,NDE_Horizontal,2.9,50,Zone_B,Routine monthly check
+2026-05-14,P-204,NDE_Horizontal,3.1,51,Zone_B,Normal operation
+2026-06-12,P-204,NDE_Horizontal,3.2,52,Zone_B,Post quarterly greasing (MR-184)
+2026-07-20,P-204,NDE_Horizontal,3.8,58,Zone_B,Slight upward trend noted
+2026-08-15,P-204,NDE_Horizontal,4.4,62,Zone_B,Near Zone B upper limit of 4.5 mm/s
+2026-08-28,P-204,NDE_Horizontal,5.4,68,Zone_C,Inspection Report #62 alert raised

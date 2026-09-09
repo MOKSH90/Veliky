@@ -1,0 +1,23 @@
+# SENTINEL — Sovereign On-Premise Industrial AI Workbench Dependencies
+# Core ML & Inference
+torch>=2.2.0
+transformers>=4.40.0
+accelerate>=0.28.0
+bitsandbytes>=0.43.0
+sentence-transformers>=2.6.0
+
+# Vector Database & Retrieval
+pymilvus>=2.4.0
+rank-bm25>=0.2.2
+
+# Document & Multimodal Ingestion
+pypdf>=4.1.0
+pillow>=10.2.0
+pyyaml>=6.0.1
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# Optional Layout & OCR Extras (for high-fidelity PDF diagrams & tables)
+# docling>=1.0.0
+# matplotlib>=3.8.0
+# rdkit>=2023.9.0

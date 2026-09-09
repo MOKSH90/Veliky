@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+sentinel_repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+export DSH_HOME="${DSH_HOME:-$sentinel_repo_root/.sentinel-dsh}"
+cd "$sentinel_repo_root/tools/deepseek-harness"
+exec node --import tsx/esm apps/cli/src/bin.ts "$@"

@@ -1,0 +1,16 @@
+{
+  "name": "sentinel-harness-policy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "policy.mjs",
+  "exports": {
+    ".": "./policy.mjs",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
