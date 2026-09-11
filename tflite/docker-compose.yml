@@ -1,0 +1,85 @@
+services:
+  # ============================================================================
+  # 1. Interactive Agent CLI / Workbench
+  # Usage: docker compose run --rm reinery [chat|investigate|rag|doctor]
+  # ============================================================================
+  reinery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: reinery:latest
+    container_name: reinery-cli
+    stdin_open: true
+    tty: true
+    environment:
+      - INFERENCE_ENDPOINT=http://model-server:8000/v1
+      - MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
+      - ROLE=analyst
+      - RETRIEVAL=hybrid
+    volumes:
+      - ./RAG/sentinel_vault:/app/RAG/sentinel_vault
+      - ./RAG/data:/app/RAG/data
+      - ./RAG/state:/app/RAG/state
+      - dsh_sessions:/app/.sentinel-dsh
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      model-server:
+        condition: service_healthy
+    command: ["chat"]
+
+  # ============================================================================
+  # 2. Local Open-Weight Inference Server (OpenAI-Compatible)
+  # Serves /v1/models and /v1/chat/completions on port 8000
+  # ============================================================================
+  model-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: reinery:latest
+    container_name: reinery-model-server
+    environment:
+      - MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
+      - SERVE_HOST=0.0.0.0
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    command: ["serve"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+    restart: unless-stopped
+
+  # ============================================================================
+  # 3. Autonomous Telemetry Watcher Daemon (Optional)
+  # Launch with: docker compose --profile watcher up -d
+  # ============================================================================
+  watcher:
+    image: reinery:latest
+    container_name: reinery-watcher
+    environment:
+      - INFERENCE_ENDPOINT=http://model-server:8000/v1
+      - MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct
+    volumes:
+      - ./RAG/sentinel_vault:/app/RAG/sentinel_vault
+      - ./RAG/data:/app/RAG/data
+      - ./RAG/state:/app/RAG/state
+      - dsh_sessions:/app/.sentinel-dsh
+    depends_on:
+      model-server:
+        condition: service_healthy
+    command: ["watch", "--interval", "10"]
+    profiles:
+      - watcher
+    restart: unless-stopped
+
+volumes:
+  # Persistent cache for Hugging Face model safetensors
+  hf_cache:
+    name: reinery_hf_cache
+  # Persistent session logs for DeepSeek Harness
+  dsh_sessions:
+    name: reinery_dsh_sessions

@@ -37,90 +37,28 @@ program
   .description('🛡️ SENTINEL - Sovereign On-Premise Agentic AI Workbench Master Orchestrator')
   .version('1.0.0');
 
-// Command: sentinel start / serve
+// Command: sentinel start / cli
 program
   .command('start')
+  .alias('cli')
   .alias('serve')
-  .description('Launch SENTINEL Web Workbench, Open-Notebook RAG, DeepSeek Harness, and Pairing QR')
-  .option('-o, --open', 'Automatically open web UI in browser', true)
-  .action(async (options) => {
-    console.log('\n==================================================');
-    console.log('🛡️  SENTINEL Sovereign AI Workbench Master Orchestrator');
-    console.log('==================================================\n');
-    console.log(`📡 Local Network Address : http://${localIP}:${PORT}`);
-    console.log(`🌐 Local Host Address    : http://localhost:${PORT}`);
-    console.log(`🖥️  Platform System      : ${os.platform()} (${os.arch()})\n`);
+  .description('Launch SENTINEL Sovereign Agent CLI (with /model, /agent, /thinking, /tools, /clear)')
+  .option('-m, --model <name>', 'Initial model name', 'Qwen/Qwen2.5-0.5B-Instruct')
+  .option('-a, --agent <type>', 'Initial agent persona (general, code, investigator, sre, researcher)', 'general')
+  .action((options) => {
+    const homeTflitePython = path.join(os.homedir(), 'tflite', '.venv', 'bin', 'python');
+    const projectsTflitePython = path.join(projectsRoot, 'tflite', '.venv', 'bin', 'python');
+    const systemPython = os.platform() === 'win32' ? 'python' : 'python3';
+    const pythonBin = fs.existsSync(homeTflitePython) ? homeTflitePython : (fs.existsSync(projectsTflitePython) ? projectsTflitePython : systemPython);
+    const scriptPath = path.join(__dirname, 'deepseek_cli.py');
 
-    // 0. Launch Local LLM Engine (Ollama)
-    console.log('🧠 Initializing Local LLM Engine (Ollama on Port 11434)...');
-    try {
-      spawn('ollama', ['serve'], {
-        stdio: 'ignore',
-        detached: true,
-        shell: true
-      }).unref();
-    } catch (err) {
-      // Ignore if ollama binary is not installed locally
-    }
-
-    // 1. Launch Open-Notebook RAG engine if present
-    const openNotebookDir = path.join(projectsRoot, 'open-notebook');
-    if (fs.existsSync(openNotebookDir)) {
-      console.log('📚 Initializing Open-Notebook RAG Engine (Port 8000)...');
-      const pyCmd = os.platform() === 'win32' ? 'python' : 'python3';
-      spawn(pyCmd, ['run_api.py'], {
-        cwd: openNotebookDir,
-        stdio: 'ignore',
-        detached: true,
-        shell: true
-      }).unref();
-    }
-
-    // 2. Launch DeepSeek Harness Agent Engine if present
-    const dshDir = path.join(projectsRoot, 'deepseek-harness');
-    if (fs.existsSync(dshDir)) {
-      console.log('🤖 Initializing DeepSeek Harness Agent Engine (Port 3080)...');
-      spawn('pnpm', ['dsh', 'web', '--no-open'], {
-        cwd: dshDir,
-        stdio: 'ignore',
-        detached: true,
-        shell: true
-      }).unref();
-    }
-
-    // 3. Render Pairing QR Code for Android App
-    const keycode = Math.floor(100000 + Math.random() * 900000).toString();
-    const payload = JSON.stringify({
-      server: 'SENTINEL-DESKTOP-HUB',
-      ip: localIP,
-      port: PORT,
-      code: keycode,
-      timestamp: Date.now()
+    const cli = spawn(pythonBin, [scriptPath, '--model', options.model, '--agent', options.agent], {
+      cwd: process.cwd(),
+      stdio: 'inherit'
     });
 
-    console.log('\n--------------------------------------------------');
-    console.log(`📲 MOBILE APP PAIRING KEYCODE: \x1b[36m\x1b[1m${keycode}\x1b[0m`);
-    console.log('Scan the QR code below using your SENTINEL Android App:\n');
-    qrcode.generate(payload, { small: true });
-    console.log('--------------------------------------------------\n');
-
-    console.log('⚡ Launching SENTINEL 3D Web Workbench server...\n');
-
-    const vite = spawn('npx', ['vite', '--host', '0.0.0.0', '--port', String(PORT)], {
-      cwd: projectRoot,
-      stdio: 'inherit',
-      shell: true
-    });
-
-    if (options.open) {
-      setTimeout(async () => {
-        console.log('\n🌐 Opening SENTINEL Web Workbench in default browser...');
-        await open(`http://localhost:${PORT}`);
-      }, 1500);
-    }
-
-    vite.on('error', (err) => {
-      console.error('❌ Failed to start server:', err.message);
+    cli.on('error', (err) => {
+      console.error('❌ Failed to start SENTINEL CLI:', err.message);
     });
   });
 

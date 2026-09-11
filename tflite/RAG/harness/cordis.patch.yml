@@ -1,0 +1,3 @@
+- insert:
+    - id: sentinel-policy
+      name: sentinel-harness-policy

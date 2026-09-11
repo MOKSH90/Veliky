@@ -1,0 +1,3 @@
+# Lightweight bridge; install requirements.txt separately for Milvus/ML ingestion.
+mcp>=1.20,<2
+PyYAML>=6,<7
