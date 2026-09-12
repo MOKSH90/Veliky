@@ -89,6 +89,7 @@ Ingest additional PDFs with `--pdf /absolute/document.pdf`; optional Docling ext
 | `calculate_metric(formula, operands, formula_name)` | Evaluates bounded arithmetic without `eval`, imports, attributes, shell or general Python execution. |
 | `query_sensor_history(equipment_id, limit=100)` | Reads equipment-authorized CSV history with exact row provenance. |
 | `verify_evidence(report)` | Checks quotes against server-held sources, numeric operands, arithmetic, explicit measurement conflicts and recommendation policy. |
+| `request_capability(capability_name, input_data)` | Validates and executes registered OS utilities; authorized unknown requests generate sandbox-tested proposals requiring admin approval. |
 | `write_vault_note(note_title, content, expected_sha256)` | Writes only `Investigations/<title>.md`, after harness approval, for engineer/manager/admin roles; rejects stale versions. |
 
 MCP names are `mcp__sentinel__<tool>`. Every executed call is audited. Source role labels follow the original role ladder; `public`, `internal`, `confidential`, and `restricted` map to levels 1, 2, 4, and 6. Unknown roles/labels fail closed. The existing RAG dense, sparse and visual branches all apply the same clearance helper.
@@ -161,3 +162,8 @@ node --test RAG/harness/policy.test.mjs
 The smoke test runs the real dsh profile, Python SDK, local pi-ai adapter and MCP child process against a scripted loopback SSE model. It tests both typed and sensor-triggered entry points and rejects an altered final report without a cloud API key. The web smoke boots the real web profile and checks that it serves the built UI. It is an integration test, not a model-quality or GPU-capacity benchmark. Subprocess IPC and loopback binding must be available to the test environment.
 
 Runtime state is ignored by Git. The audit is hash-chained and fsynced under file locks, making edits detectable if the trusted chain tip is preserved; it is **not** immutable storage against a host administrator. Production deployment still needs authenticated user-to-role mapping, a separate service identity per trust boundary, encrypted storage, retention policy, network egress controls and off-host/WORM audit anchoring. These are deployment responsibilities, not claims satisfied by a YAML patch. Dedicated three-panel SENTINEL UI/AI Canvas rendering, organization rollups and the architecture's roadmap-only differentiators are not added to the upstream harness.
+
+## OS capabilities
+
+See [CAPABILITIES.md](CAPABILITIES.md) for the config-driven OS utility registry,
+offline sandbox requirements, structured MCP interface, and audit verification.

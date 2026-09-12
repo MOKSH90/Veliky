@@ -1,6 +1,6 @@
-"""Retrieval-only workbench shared by MCP, SDK verification and the watcher.
+"""Permissioned retrieval and capability workbench shared by MCP, SDK and watcher.
 
-The harness owns generation. This module never loads a generative model.
+The harness owns agent turns; extensions use local inference without loading weights here.
 """
 from __future__ import annotations
 
@@ -62,6 +62,31 @@ class SentinelService:
     def __init__(self, config: BridgeConfig | None = None):
         self.cfg = config or BridgeConfig()
         self._retrieval = None
+        import uuid
+        self._capability_session = uuid.uuid4().hex
+        from audit_log import AuditLog
+        from capability_dispatcher import CapabilityDispatcher
+        from capability_registry import CapabilityRegistry
+        from policy_engine import PolicyEngine
+        from sandbox_executor import SandboxExecutor
+        from self_extension_pipeline import SelfExtensionPipeline
+        from local_model_client import LocalModelClient
+        registry = CapabilityRegistry(generated_path=self.cfg.state_dir / 'generated_capabilities.json')
+        self._capability_dispatcher = CapabilityDispatcher(
+            registry, PolicyEngine(),
+            SandboxExecutor(registry, [self.cfg.data_dir / 'capability_inputs'],
+                            self.cfg.state_dir / 'capability_outputs'),
+            AuditLog(self.cfg.state_dir / 'audit.jsonl'))
+        endpoint = os.environ.get('SENTINEL_EXTENSION_ENDPOINT')
+        self._extensions_enabled = os.environ.get('SENTINEL_ALLOW_SELF_EXTENSION') == '1'
+        self._capability_risk = os.environ.get('SENTINEL_CAPABILITY_RISK', 'low')
+        if self._capability_risk not in ('low', 'medium', 'high'):
+            raise ValueError('Invalid trusted capability risk level')
+        model = LocalModelClient(endpoint, os.environ.get('SENTINEL_EXTENSION_MODEL', 'Qwen/Qwen2.5-0.5B-Instruct')) if endpoint and self._extensions_enabled else None
+        self._capability_dispatcher.self_extension_pipeline = SelfExtensionPipeline(
+            registry, self._capability_dispatcher.executor, self._capability_dispatcher.audit,
+            model, self.cfg.state_dir / 'capability_proposals')
+
         with self.db() as db:
             db.executescript('''
               CREATE TABLE IF NOT EXISTS evidence (id TEXT PRIMARY KEY, role TEXT NOT NULL, payload TEXT NOT NULL);
@@ -85,23 +110,17 @@ class SentinelService:
 
     def audit(self, action: str, status: str, details: dict):
         """Fsync a hash-chained JSONL record under a cross-process writer lock."""
-        path = self.cfg.state_dir / "audit.jsonl"
-        with self.lock("audit"):
-            previous = "0" * 64
-            if path.exists():
-                with path.open("rb") as existing:
-                    last = None
-                    for line in existing:
-                        last = line
-                    if last:
-                        previous = json.loads(last)["hash"]
-            record = {"timestamp": datetime.now(timezone.utc).isoformat(), "role": self.cfg.role,
-                      "action": action, "status": status, "details": details, "previous_hash": previous}
-            record["hash"] = digest(record)
-            with path.open("a") as stream:
-                stream.write(canonical(record) + "\n")
-                stream.flush()
-                os.fsync(stream.fileno())
+        from audit_log import AuditLog
+        AuditLog(self.cfg.state_dir / "audit.jsonl").append(
+            {"role": self.cfg.role, "action": action, "status": status, "details": details})
+
+    def request_capability(self, capability_name: str, input_data: dict) -> dict:
+        """Request a registered OS capability using structured data; unknown names escalate."""
+        # Identity and permissions are host-owned, absent from the MCP input schema.
+        return self._capability_dispatcher.dispatch(capability_name, input_data, {
+            'session_id': self._capability_session, 'allowed_risk_level': self._capability_risk,
+            'allow_self_extension': self._extensions_enabled,
+            'network_allowed': False, 'role': self.cfg.role})
 
     def invoke(self, name: str, **arguments):
         if name not in TOOL_NAMES:
@@ -371,4 +390,4 @@ class SentinelService:
 
 
 TOOL_NAMES = ("search_documents", "read_document", "read_vault_note", "get_vault_backlinks", "traverse_graph",
-              "analyze_equipment_drawing", "calculate_metric", "query_sensor_history", "verify_evidence", "write_vault_note")
+              "analyze_equipment_drawing", "calculate_metric", "query_sensor_history", "verify_evidence", "write_vault_note", "request_capability")

@@ -1,0 +1,195 @@
+# Administrator-owned configuration. Never accept registry changes from agent input.
+capabilities:
+- name: ocr
+  implementation:
+    type: python_callable
+    module: capability_worker:ocr
+    output_format: json
+    output_schema:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+      required:
+      - text
+      additionalProperties: false
+    input_files:
+    - path
+  input_schema:
+    type: object
+    properties:
+      path: &id001
+        type: string
+        minLength: 1
+        maxLength: 4096
+    required:
+    - path
+    additionalProperties: false
+  risk_tier: low
+  sandbox_required: true
+  network_allowed: false
+  timeout_seconds: 120
+- name: pdf_text_extraction
+  implementation:
+    type: binary
+    path: /usr/bin/pdftotext
+    args:
+    - '{path}'
+    - '-'
+    input_files:
+    - path
+  input_schema:
+    type: object
+    properties:
+      path: *id001
+    required:
+    - path
+    additionalProperties: false
+  risk_tier: low
+  sandbox_required: true
+  network_allowed: false
+  timeout_seconds: 30
+- name: image_processing
+  implementation:
+    type: binary
+    path: /usr/bin/convert
+    args:
+    - '{path}'
+    - '{operation}'
+    - '{value}'
+    - /work/output.png
+    input_files:
+    - path
+    output_file: output.png
+  input_schema:
+    type: object
+    properties:
+      path: *id001
+      operation:
+        type: string
+        enum:
+        - -resize
+        - -rotate
+      value:
+        type: string
+        pattern: ^[0-9]{1,4}(x[0-9]{1,4})?$
+    required:
+    - path
+    - operation
+    - value
+    additionalProperties: false
+  risk_tier: medium
+  sandbox_required: true
+  network_allowed: false
+  timeout_seconds: 30
+- name: compression
+  implementation:
+    type: binary
+    path: /usr/bin/tar
+    args:
+    - -czf
+    - /work/output.tar.gz
+    - --
+    - '{paths}'
+    input_files:
+    - paths
+    output_file: output.tar.gz
+  input_schema:
+    type: object
+    properties:
+      paths:
+        type: array
+        items: *id001
+        minItems: 1
+        maxItems: 32
+    required:
+    - paths
+    additionalProperties: false
+  risk_tier: low
+  sandbox_required: true
+  network_allowed: false
+  timeout_seconds: 30
+- name: text_search
+  implementation:
+    type: binary
+    path: /usr/bin/grep
+    args:
+    - -n
+    - -e
+    - '{pattern}'
+    - --
+    - '{path}'
+    input_files:
+    - path
+    nonempty_output: false
+    success_exit_codes:
+    - 0
+    - 1
+  input_schema:
+    type: object
+    properties:
+      path: *id001
+      pattern:
+        type: string
+        maxLength: 4096
+    required:
+    - path
+    - pattern
+    additionalProperties: false
+  risk_tier: low
+  sandbox_required: true
+  network_allowed: false
+  timeout_seconds: 30
+- name: python_exec
+  implementation:
+    type: binary
+    path: /usr/bin/python3
+    args:
+    - -I
+    - -c
+    - '{script}'
+    nonempty_output: false
+  input_schema:
+    type: object
+    properties:
+      script:
+        type: string
+        minLength: 1
+        maxLength: 65536
+    required:
+    - script
+    additionalProperties: false
+  risk_tier: high
+  sandbox_required: true
+  network_allowed: false
+  timeout_seconds: 20
+- name: csv_analysis
+  implementation:
+    type: python_callable
+    module: capability_worker:csv_analysis
+    output_format: json
+    output_schema:
+      type:
+      - object
+      - array
+    input_files:
+    - path
+  input_schema:
+    type: object
+    properties:
+      path: *id001
+      operation:
+        type: string
+        enum:
+        - head
+        - describe
+        - summary
+    required:
+    - path
+    - operation
+    additionalProperties: false
+  risk_tier: low
+  sandbox_required: true
+  network_allowed: false
+  timeout_seconds: 30

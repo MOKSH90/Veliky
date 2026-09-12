@@ -48,3 +48,24 @@ test('only exact report verified in this turn may complete; failed verification 
 test('canonical object order does not alter report identity', () => {
   assert.equal(stable({b:[{y:2,x:1}],a:0}), stable({a:0,b:[{x:1,y:2}]}))
 })
+
+test('capability mode cannot claim completion without real tool evidence', async () => {
+  const previous = process.env.SENTINEL_MODE
+  process.env.SENTINEL_MODE = 'capability'
+  try {
+    const {handlers} = setup()
+    const agent = {}
+    const stop = () => handlers.get('agent/turn-stopping')({agent})
+    assert.throws(stop, /capability evidence gate/)
+    handlers.get('tools/result')({agent,name:'mcp__sentinel__request_capability'},
+      {isError:false,value:{structuredContent:{status:'pending_approval'}}})
+    assert.doesNotThrow(stop)
+    await handlers.get('agent/pre-step')({agent,step:1},async () => ({}))
+    assert.throws(stop, /capability evidence gate/)
+    handlers.get('tools/result')({agent,name:'mcp__sentinel__request_capability'}, {isError:true})
+    assert.throws(stop, /capability evidence gate/)
+  } finally {
+    if (previous === undefined) delete process.env.SENTINEL_MODE
+    else process.env.SENTINEL_MODE = previous
+  }
+})

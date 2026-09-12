@@ -4,7 +4,7 @@ export const inject = ['tools', 'approval']
 const PREFIX = 'mcp__sentinel__'
 export const names = ['search_documents', 'read_document', 'read_vault_note', 'get_vault_backlinks',
   'traverse_graph', 'analyze_equipment_drawing', 'calculate_metric', 'query_sensor_history',
-  'verify_evidence', 'write_vault_note'].map(name => PREFIX + name)
+  'verify_evidence', 'write_vault_note', 'request_capability'].map(name => PREFIX + name)
 const allowed = new Set(names)
 
 export function stable(value) {
@@ -15,6 +15,7 @@ export function stable(value) {
 
 export function apply(ctx) {
   const verified = new WeakMap()
+  const capabilityEvidence = new WeakMap()
   ctx.tools.guard(exec => allowed.has(exec.name) ? undefined : 'SENTINEL BLOCKED: only the approved industrial MCP tools may execute.')
   ctx.on('tools/pre-execute', async (exec, next) => {
     const decision = await next()
@@ -25,11 +26,15 @@ export function apply(ctx) {
     return decision
   })
   ctx.on('agent/pre-step', async ({ agent, step }, next) => {
-    if (step === 1) verified.delete(agent)
+    if (step === 1) { verified.delete(agent); capabilityEvidence.delete(agent) }
     return next()
   })
   ctx.on('tools/result', (exec, result) => {
     if (!exec.agent) return
+    if (exec.name === PREFIX + 'request_capability') {
+      const payload = result.isError ? undefined : result.value?.structuredContent
+      if (payload && typeof payload.status === 'string') capabilityEvidence.set(exec.agent, payload.status)
+    }
     if (exec.name === PREFIX + 'verify_evidence') {
       verified.delete(exec.agent)
       const payload = result.isError ? undefined : result.value?.structuredContent
@@ -42,6 +47,10 @@ export function apply(ctx) {
   })
   ctx.on('agent/turn-stopping', ({ agent }) => {
     if (process.env.SENTINEL_MODE === 'chat') return
+    if (process.env.SENTINEL_MODE === 'capability') {
+      if (!capabilityEvidence.has(agent)) throw new Error('SENTINEL capability evidence gate: no real capability result was received.')
+      return
+    }
     const events = agent.session.snapshotEvents()
     const last = events.findLast(event => event.type === 'assistant/message')
     const text = last?.data?.message?.content?.filter(block => block.type === 'text').map(block => block.text).join('')

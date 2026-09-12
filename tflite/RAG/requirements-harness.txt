@@ -1,3 +1,7 @@
 # Lightweight bridge; install requirements.txt separately for Milvus/ML ingestion.
 mcp>=1.20,<2
 PyYAML>=6,<7
+
+# Offline capability schema validation and CSV callable
+jsonschema>=4.23,<5
+pandas>=2.2,<4

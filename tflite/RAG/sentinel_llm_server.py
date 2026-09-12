@@ -36,9 +36,11 @@ class ModelEngine:
     def __init__(self, model_name: str, device: str = "cpu", torch_dtype: str = "float32"):
         self.model_name = model_name
         self.device = device
+        if device == "cpu":
+            torch.set_num_threads(4)
         self.dtype = getattr(torch, torch_dtype, torch.float32)
         logger.info("Loading tokenizer for %s...", model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=False, local_files_only=True)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         logger.info("Loading model weights for %s on %s (%s)...", model_name, device, torch_dtype)
@@ -46,7 +48,7 @@ class ModelEngine:
             model_name,
             torch_dtype=self.dtype,
             device_map=device,
-            trust_remote_code=True,
+            trust_remote_code=False, local_files_only=True,
             low_cpu_mem_usage=True,
         )
         self.model.eval()

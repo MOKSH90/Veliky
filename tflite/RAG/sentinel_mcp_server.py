@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import inspect
+import os
 import sys
 from contextlib import redirect_stdout
 from functools import wraps
@@ -35,10 +36,10 @@ def create_server(service=None):
         invoke.__signature__ = inspect.signature(method).replace(return_annotation=CallToolResult)
         invoke.__annotations__ = {**method.__annotations__, "return": CallToolResult}
         server.add_tool(invoke, name=name, description=method.__doc__ or name.replace("_", " "),
-                        annotations=ToolAnnotations(readOnlyHint=name != "write_vault_note",
+                        annotations=ToolAnnotations(readOnlyHint=name not in ("write_vault_note", "request_capability"),
                         destructiveHint=name == "write_vault_note", openWorldHint=False))
 
-    for name in TOOL_NAMES:
+    for name in (("request_capability",) if os.environ.get("SENTINEL_CAPABILITIES_ONLY") == "1" else TOOL_NAMES):
         register(name)
     return server
 

@@ -170,7 +170,7 @@ def test_real_mcp_stdio_discovery_retrieval_errors_and_verification(service):
             async with ClientSession(reader,writer) as session:
                 await session.initialize()
                 listing = await session.list_tools()
-                assert len(listing.tools) == 10
+                assert len(listing.tools) == 11
                 result = await session.call_tool('search_documents', {'query':'P-204 vibration'})
                 assert not result.isError
                 assert result.structuredContent['results']

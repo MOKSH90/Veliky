@@ -21,3 +21,7 @@ beautifulsoup4>=4.12.0
 # docling>=1.0.0
 # matplotlib>=3.8.0
 # rdkit>=2023.9.0
+
+# Offline capability schema validation and CSV callable
+jsonschema>=4.23,<5
+pandas>=2.2,<4

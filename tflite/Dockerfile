@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     zstd \
     ca-certificates \
+    bubblewrap util-linux poppler-utils tesseract-ocr imagemagick tar gzip grep \
  && rm -rf /var/lib/apt/lists/*
 
 # 2. Install pnpm (exact version matched to deepseek-harness)
@@ -39,6 +40,7 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
         starlette \
         uvicorn \
         pytest \
+        jsonschema pandas \
         rank-bm25 \
         pillow \
         sentence-transformers \
