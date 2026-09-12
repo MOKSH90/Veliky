@@ -14,6 +14,19 @@ import subprocess
 import argparse
 from pathlib import Path
 
+# Auto-switch to virtual environment containing Sentinel dependencies
+if sys.prefix == sys.base_prefix:
+    candidate_venvs = [
+        Path(__file__).resolve().parent / ".venv/bin/python",
+        Path(__file__).resolve().parent.parent / "tflite/.venv/bin/python",
+        Path.home() / "Projects/Tflite/Sentinel/tflite/.venv/bin/python",
+        Path.home() / "tflite/.venv/bin/python",
+        Path("/opt/venv/bin/python"),
+    ]
+    for venv_py in candidate_venvs:
+        if venv_py.exists():
+            os.execv(str(venv_py), [str(venv_py)] + sys.argv)
+
 # Suppress noisy Hugging Face, gRPC & library logs completely
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN_WARNING"] = "1"

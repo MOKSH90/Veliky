@@ -35,6 +35,12 @@ from rich.table import Table
 
 console = Console()
 
+SENTINEL_BANNER = """[bold white]  ███████   [/bold white][bold cyan]████████[/bold cyan][bold white]   ███    ██  ████████  ██  ███    ██  ████████  ██      [/bold white]
+[bold white] ██▀        [/bold white][bold cyan] ▀▀▀▀▀▀ [/bold cyan][bold white]   ████   ██     ██     ██  ████   ██  ██       ██      [/bold white]
+[bold white] ▀███████   [/bold white][bold cyan]████████[/bold cyan][bold white]   ██ ██  ██     ██     ██  ██ ██  ██  ███████  ██      [/bold white]
+[bold white]      ▄██   [/bold white][bold cyan] ▄▄▄▄▄▄ [/bold cyan][bold white]   ██  ██ ██     ██     ██  ██  ██ ██  ██       ██      [/bold white]
+[bold white] ███████▀   [/bold white][bold cyan]████████[/bold cyan][bold white]   ██   ████     ██     ██  ██   ████  ████████  ███████▀[/bold white]"""
+
 
 def ensure_patch(endpoint: str, model: str, role: str = "analyst", retrieval: str = "hybrid", mode: str = "investigate") -> Path:
     from sentinel_harness import configure
@@ -65,12 +71,25 @@ def check_model_server(endpoint: str) -> bool:
         return False
 
 
+def cmd_agent(args: argparse.Namespace):
+    from deepseek_cli import DeepSeekCLI
+    cli = DeepSeekCLI(
+        model=args.model,
+        agent=args.agent,
+        thinking=not getattr(args, "no_thinking", False),
+    )
+    cli.run()
+
+
 def cmd_chat(args: argparse.Namespace):
     from deepseek_harness import DeepSeekHarness
     from sentinel_service import BridgeConfig, SentinelService
 
+    console.print()
+    console.print(SENTINEL_BANNER)
+    console.print("[bold cyan]" + "─" * 78 + "[/bold cyan]")
     console.print(Panel.fit(
-        "[bold cyan]Reinery[/bold cyan] — [bold white]Sovereign Agentic AI Workbench[/bold white]\n"
+        "[bold cyan]SENTINEL[/bold cyan] — [bold white]Sovereign Agentic AI Workbench[/bold white]\n"
         f"[dim]Model: [green]{args.model}[/green] | Endpoint: [green]{args.endpoint}[/green] | Role: [yellow]{args.role}[/yellow][/dim]\n"
         "[dim]Type [bold]/help[/bold] for commands or [bold]exit[/bold] to quit.[/dim]",
         border_style="cyan",
@@ -373,6 +392,13 @@ def main():
     parser.add_argument("--retrieval", default="hybrid", choices=("hybrid", "vault"), help="Retrieval backend")
 
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
+
+    # Agent CLI (Full SENTINEL Persona Interface with /model, /agent, /thinking, /tools)
+    p_agent = subparsers.add_parser("agent", aliases=["start"], help="Start interactive SENTINEL Agent CLI (/model, /agent, /thinking, /tools)")
+    p_agent.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct", help="Initial model name")
+    p_agent.add_argument("--agent", default="general", choices=("general", "code", "investigator", "sre", "researcher"), help="Initial agent persona")
+    p_agent.add_argument("--no-thinking", action="store_true", help="Disable thinking mode")
+    p_agent.set_defaults(func=cmd_agent)
 
     # Chat
     p_chat = subparsers.add_parser("chat", help="Start interactive agent CLI session")

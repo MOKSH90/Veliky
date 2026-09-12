@@ -46,10 +46,20 @@ program
   .option('-m, --model <name>', 'Initial model name', 'Qwen/Qwen2.5-0.5B-Instruct')
   .option('-a, --agent <type>', 'Initial agent persona (general, code, investigator, sre, researcher)', 'general')
   .action((options) => {
-    const homeTflitePython = path.join(os.homedir(), 'tflite', '.venv', 'bin', 'python');
-    const projectsTflitePython = path.join(projectsRoot, 'tflite', '.venv', 'bin', 'python');
-    const systemPython = os.platform() === 'win32' ? 'python' : 'python3';
-    const pythonBin = fs.existsSync(homeTflitePython) ? homeTflitePython : (fs.existsSync(projectsTflitePython) ? projectsTflitePython : systemPython);
+    const candidatePythons = [
+      path.join(projectsRoot, 'tflite', '.venv', 'bin', 'python'),
+      path.join(os.homedir(), 'Projects', 'Tflite', 'Sentinel', 'tflite', '.venv', 'bin', 'python'),
+      path.join(os.homedir(), '.sentinel', 'app', 'tflite', '.venv', 'bin', 'python'),
+      path.join(os.homedir(), 'tflite', '.venv', 'bin', 'python'),
+      '/opt/venv/bin/python',
+    ];
+    let pythonBin = os.platform() === 'win32' ? 'python' : 'python3';
+    for (const p of candidatePythons) {
+      if (fs.existsSync(p)) {
+        pythonBin = p;
+        break;
+      }
+    }
     const scriptPath = path.join(__dirname, 'deepseek_cli.py');
 
     const cli = spawn(pythonBin, [scriptPath, '--model', options.model, '--agent', options.agent], {

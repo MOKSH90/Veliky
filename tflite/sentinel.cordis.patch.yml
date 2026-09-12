@@ -47,8 +47,8 @@
       questions, respond politely and conversationally in plain text. DO NOT invoke
       any tools for simple greetings or chatter.
 
-      Only invoke tools when the user''s request specifically asks you to retrieve
-      data or perform calculations:
+      Invoke tools when the user asks to retrieve data, perform calculations, or use
+      an OS capability:
 
       - Use mcp__sentinel__read_vault_note or mcp__sentinel__search_documents when
       asked to look up equipment details, inspection reports, or SOPs.
@@ -62,6 +62,9 @@
       - Only call mcp__sentinel__verify_evidence when the user explicitly asks to
       run or verify a formal investigation report.
 
+      For OS utility actions, use mcp__sentinel__request_capability first. Never request
+      shell access.
+
       Never fabricate data or cite non-existent sources.
 
       '
@@ -71,7 +74,7 @@
 - id: sandbox-policy
   config:
     mode: read-only
-    workspaceRoot: /home/lucifer/Projects/Tflite/reinery
+    workspaceRoot: /home/lucifer/Projects/Tflite/Sentinel/tflite
 - id: permission
   config:
     presets:
@@ -81,18 +84,18 @@
     defaultPreset: read-only
 - insert:
   - id: sentinel-policy
-    name: /home/lucifer/Projects/Tflite/reinery/RAG/harness/policy.mjs
+    name: /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG/harness/policy.mjs
   - id: mcp-sentinel
     name: '@deepseek-ai/dsh-mcp-client'
     config:
       serverName: sentinel
       transport: stdio
-      command: /home/lucifer/Projects/Tflite/reinery/.venv/bin/python
+      command: /home/lucifer/Projects/Tflite/Sentinel/tflite/.venv/bin/python
       args:
-      - /home/lucifer/Projects/Tflite/reinery/RAG/sentinel_mcp_server.py
-      cwd: /home/lucifer/Projects/Tflite/reinery/RAG
+      - /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG/sentinel_mcp_server.py
+      cwd: /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG
       failOnStartupError: true
-      toolCallTimeoutMs: 120000
+      toolCallTimeoutMs: 240000
       env:
         PYTHONUNBUFFERED: '1'
         HF_HUB_OFFLINE: '1'
@@ -100,9 +103,14 @@
         HF_HUB_DISABLE_TELEMETRY: '1'
         SENTINEL_ROLE: analyst
         SENTINEL_RETRIEVAL: hybrid
-        VAULT_DIR: /home/lucifer/Projects/Tflite/reinery/RAG/sentinel_vault
-        INDEX_DIR: /home/lucifer/Projects/Tflite/reinery/RAG/index_store
-        MILVUS_URI: /home/lucifer/Projects/Tflite/reinery/RAG/index_store/milvus.db
-        SENTINEL_DATA_DIR: /home/lucifer/Projects/Tflite/reinery/RAG/data
-        SENTINEL_STATE_DIR: /home/lucifer/Projects/Tflite/reinery/RAG/state
+        VAULT_DIR: /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG/sentinel_vault
+        INDEX_DIR: /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG/index_store
+        MILVUS_URI: /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG/index_store/milvus.db
+        SENTINEL_DATA_DIR: /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG/data
+        SENTINEL_STATE_DIR: /home/lucifer/Projects/Tflite/Sentinel/tflite/RAG/state
         SENTINEL_HARNESS_WRITES: '1'
+        SENTINEL_CAPABILITIES_ONLY: '0'
+        SENTINEL_EXTENSION_ENDPOINT: http://127.0.0.1:8000/v1
+        SENTINEL_EXTENSION_MODEL: Qwen/Qwen2.5-0.5B-Instruct
+        SENTINEL_ALLOW_SELF_EXTENSION: '0'
+        SENTINEL_CAPABILITY_RISK: low
