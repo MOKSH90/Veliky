@@ -37,13 +37,42 @@ program
   .description('🛡️ SENTINEL - Sovereign On-Premise Agentic AI Workbench Master Orchestrator')
   .version('1.0.0');
 
+// Helper to launch Vite web server and LLM server silently in background
+function launchWebServerInBackground() {
+  const viteJs = path.join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
+  if (fs.existsSync(viteJs)) {
+    try {
+      const webProc = spawn(process.execPath, [viteJs, '--host'], {
+        cwd: projectRoot,
+        detached: true,
+        stdio: 'ignore'
+      });
+      webProc.unref();
+    } catch (_) {}
+  }
+
+  // Also spawn local LLM server on port 8000 if python environment exists
+  const llmServerScript = path.join(projectsRoot, 'tflite', 'RAG', 'sentinel_llm_server.py');
+  const pythonBin = path.join(os.homedir(), 'tflite', '.venv', 'bin', 'python');
+  if (fs.existsSync(llmServerScript) && fs.existsSync(pythonBin)) {
+    try {
+      const llmProc = spawn(pythonBin, [llmServerScript, '--port', '8000'], {
+        cwd: path.dirname(llmServerScript),
+        detached: true,
+        stdio: 'ignore'
+      });
+      llmProc.unref();
+    } catch (_) {}
+  }
+}
+
 // Command: sentinel start / cli
 program
   .command('start')
   .alias('cli')
   .alias('serve')
   .description('Launch SENTINEL Sovereign Agent CLI (with /model, /agent, /thinking, /tools, /clear)')
-  .option('-m, --model <name>', 'Initial model name', 'Qwen/Qwen2.5-0.5B-Instruct')
+  .option('-m, --model <name>', 'Initial model name', 'Qwen/Qwen2.5-1.5B-Instruct')
   .option('-a, --agent <type>', 'Initial agent persona (general, code, investigator, sre, researcher)', 'general')
   .action((options) => {
     const candidatePythons = [

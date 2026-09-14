@@ -3,7 +3,7 @@ import type { ActiveView, AgentState, AppStage, AuthUser, ExecutionLogItem, File
 import { activity, fileTree, memories, workspaces } from '../mock/data'
 import { buildGraphFromTree, buildWorkspaceFromFileList } from '../lib/workspace'
 import { buildWikilinkGraph, flattenTree } from '../lib/wikilinkParser'
-import { queryHuggingFaceLLM } from '../services/huggingfaceService'
+import { processDeepSeekAgentPrompt } from '../services/deepseekAgentService'
 
 
 const initialPlan: PlanStep[] = [
@@ -41,6 +41,14 @@ interface EdithStore {
   historyOpen: boolean
   projectSwitcherOpen: boolean
   isIndexingWorkspace: boolean
+
+  // ── DeepSeek Agent Engine Configuration ──
+  activeModel: string
+  activeAgent: string
+  thinkingMode: boolean
+  setActiveModel: (model: string) => void
+  setActiveAgent: (agent: string) => void
+  setThinkingMode: (thinking: boolean) => void
 
   // ── Editor state ──
   editorContent: string
@@ -102,10 +110,14 @@ export const useSentinelStore = create<EdithStore>((set, get) => ({
   currentGoal: '', currentAction: '', plan: initialPlan, selectedFile: null, selectedActivityId: null,
   files: fileTree, memory: memories, activity, graphNodes: fallbackGraph.nodes, graphEdges: fallbackGraph.edges,
   activeFiles: [], executionLog: [], commandHistory: [], profileOpen: false, historyOpen: false, projectSwitcherOpen: false, isIndexingWorkspace: false,
+  activeModel: 'Qwen/Qwen2.5-0.5B-Instruct', activeAgent: 'general', thinkingMode: true,
+  setActiveModel: (activeModel) => set({ activeModel }),
+  setActiveAgent: (activeAgent) => set({ activeAgent }),
+  setThinkingMode: (thinkingMode) => set({ thinkingMode }),
   editorContent: '', editorDirty: false, editorSaveTimer: null,
   wikilinkNodes: [], wikilinkEdges: [],
   graphSettings: {
-    filters: { search: '', orphans: false },
+    filters: { search: '', orphans: true },
     groups: [],
     display: { arrows: true, textFade: 0.5, nodeSize: 4, linkThickness: 1.5, animate: true },
     forces: { centerForce: 0.1, repelForce: 100, linkForce: 0.5, linkDistance: 30 }
@@ -116,7 +128,36 @@ export const useSentinelStore = create<EdithStore>((set, get) => ({
   signOut: () => set({ stage: 'auth', authUser: null }),
   setActiveView: (activeView) => set({ activeView }),
   selectWorkspace: (currentWorkspace) => set({ currentWorkspace }),
-  loadLocalWorkspace: async () => {},
+  loadLocalWorkspace: async (fileList: FileList) => {
+    if (!fileList || fileList.length === 0) return
+    set({ isIndexingWorkspace: true })
+    try {
+      const res = await buildWorkspaceFromFileList(fileList)
+      const newWs = {
+        id: `local-${Date.now()}`,
+        name: res.name,
+        path: res.path,
+        branch: res.gitDetected ? 'main' : 'local',
+        tech: res.tech,
+        filesCount: res.fileCount,
+        summary: `Uploaded directory '${res.name}' with ${res.fileCount} files`,
+        progress: 100,
+        source: 'local' as const,
+      }
+      set({
+        currentWorkspace: newWs,
+        files: res.files,
+        graphNodes: res.graphNodes,
+        graphEdges: res.graphEdges,
+        isIndexingWorkspace: false,
+        stage: 'workspace',
+      })
+      get().reindexWikilinks()
+    } catch (err) {
+      console.error('Failed to load workspace:', err)
+      set({ isIndexingWorkspace: false })
+    }
+  },
   setCurrentWorkspaceById: () => {},
   setSelectedFile: (file) => set({ selectedFile: file }),
   setSelectedActivityId: (id) => set({ selectedActivityId: id }),
@@ -138,88 +179,83 @@ export const useSentinelStore = create<EdithStore>((set, get) => ({
   submitGoal: async (goal) => {
     clearTimers()
     const cleanGoal = goal.trim()
+    if (!cleanGoal) return
+
     const log = (label:string, detail:string, status:ExecutionLogItem['status']='running', file?:string): ExecutionLogItem => ({ id:`log-${Date.now()}-${Math.random()}`, time:stamp(), label, detail, status, file })
 
-    const hfToken = localStorage.getItem('hf_token') || localStorage.getItem('HF_TOKEN') || ''
-    const selectedModel = localStorage.getItem('hf_selected_model') || 'Qwen/Qwen2.5-Coder-1.5B-Instruct'
-    const modelShortName = selectedModel.split('/')[1] || selectedModel
+    const { activeModel, activeAgent, thinkingMode, files } = get()
+    const modelShortName = activeModel.split('/')[1] || activeModel
 
     set({
       currentGoal: cleanGoal,
       agentState: 'executing',
       activeView: 'agent',
-      currentAction: `Connecting to Hugging Face (${modelShortName})…`,
+      currentAction: `DeepSeek Sovereign Agent (${activeAgent.toUpperCase()}) processing…`,
       plan: [
         { id: 'p1', label: 'Receive user prompt', status: 'done' },
-        { id: 'p2', label: `Dispatching query to HF (${modelShortName})`, status: 'active' },
-        { id: 'p3', label: 'Stream response from LLM', status: 'pending' }
+        { id: 'p2', label: `Dispatched to DeepSeek Agent (${modelShortName})`, status: 'active' },
+        { id: 'p3', label: 'CoT Reasoning & Tool Execution', status: 'pending' },
+        { id: 'p4', label: 'Verify workspace state', status: 'pending' }
       ],
       activeFiles: [],
       commandHistory: [cleanGoal, ...get().commandHistory.filter((x) => x !== cleanGoal)].slice(0,12),
       executionLog: [
         log('User Prompt', cleanGoal, 'done'),
-        log('Hugging Face Model Dispatch', `Target model: ${selectedModel}`, 'running')
+        log(`DeepSeek Agent (${activeAgent.toUpperCase()})`, `Model: ${activeModel} | CoT: ${thinkingMode ? 'ON' : 'OFF'}`, 'running')
       ]
     })
 
-    if (!hfToken) {
-      set((s) => ({
-        agentState: 'failed',
-        currentAction: 'Hugging Face Token Required',
-        plan: [
-          { id: 'p1', label: 'Receive user prompt', status: 'done' },
-          { id: 'p2', label: 'Hugging Face Token Check', status: 'pending' },
-          { id: 'p3', label: 'LLM Response Stream', status: 'pending' }
-        ],
-        executionLog: [
-          ...s.executionLog.map((x) => x.status === 'running' ? { ...x, status: 'error' as const } : x),
-          log(
-            'Hugging Face Connection Required',
-            `### 🤗 Connect Hugging Face Real AI Model\n\n` +
-            `To run **real LLM inferences** with **${modelShortName}**, please enter your Hugging Face User Access Token:\n\n` +
-            `1. **[Get Free Token](https://huggingface.co/settings/tokens)** on Hugging Face (type: **Read**).\n` +
-            `2. Paste your token (\`hf_...\`) in the **HF Connection Bar** at the top of the app and click **Connect HF**.\n\n` +
-            `*Once connected, all your prompts will be processed directly by live Hugging Face AI models!*`,
-            'done'
-          )
-        ]
-      }))
-      return
-    }
+    const flatFiles = flattenTree(files)
+    const result = await processDeepSeekAgentPrompt({
+      prompt: cleanGoal,
+      agentPersona: activeAgent,
+      model: activeModel,
+      thinking: thinkingMode,
+      files: flatFiles.map(f => ({ name: f.name, path: f.path, content: f.content }))
+    })
 
-    const result = await queryHuggingFaceLLM(cleanGoal, hfToken, selectedModel)
+    // Auto-create/update files generated by agent file tools
+    if (result.createdFiles && result.createdFiles.length > 0) {
+      for (const cf of result.createdFiles) {
+        get().createVaultFile('', cf.path)
+        const flatAfter = flattenTree(get().files)
+        const target = flatAfter.find(f => f.path === cf.path)
+        if (target) {
+          get().openFileByPath(target.path)
+          get().setEditorContent(cf.content)
+          get().saveCurrentFile()
+        }
+      }
+    }
 
     if (result.success) {
       set((s) => ({
         agentState: 'success',
-        currentAction: `Completed via ${result.modelName}`,
+        currentAction: `Completed via DeepSeek Agent (${activeAgent.toUpperCase()})`,
         plan: [
           { id: 'p1', label: 'Receive user prompt', status: 'done' },
-          { id: 'p2', label: `Connected to ${result.modelName}`, status: 'done' },
-          { id: 'p3', label: 'Response generated successfully', status: 'done' }
+          { id: 'p2', label: `Dispatched to DeepSeek Agent (${modelShortName})`, status: 'done' },
+          { id: 'p3', label: 'CoT Reasoning & Tool Execution', status: 'done' },
+          { id: 'p4', label: 'Workspace state verified', status: 'done' }
         ],
         executionLog: [
           ...s.executionLog.map((x) => x.status === 'running' ? { ...x, status: 'done' as const } : x),
-          log(`SENTINEL AI (${result.modelName})`, result.text, 'done')
+          ...(result.reasoning ? [log('Chain-of-Thought (CoT)', result.reasoning, 'done')] : []),
+          log(`SENTINEL DeepSeek Agent (${activeAgent.toUpperCase()})`, result.text, 'done')
         ]
       }))
     } else {
       set((s) => ({
         agentState: 'failed',
-        currentAction: 'Hugging Face Inference Error',
+        currentAction: 'DeepSeek Agent Error',
         plan: [
           { id: 'p1', label: 'Receive user prompt', status: 'done' },
-          { id: 'p2', label: `Failed: ${result.modelName}`, status: 'pending' },
-          { id: 'p3', label: 'Stream interrupted', status: 'pending' }
+          { id: 'p2', label: `Failed: ${activeAgent}`, status: 'pending' },
+          { id: 'p3', label: 'Execution interrupted', status: 'pending' }
         ],
         executionLog: [
           ...s.executionLog.map((x) => x.status === 'running' ? { ...x, status: 'error' as const } : x),
-          log(
-            'Hugging Face API Error',
-            `❌ **${result.error || 'Failed to connect to Hugging Face model.'}**\n\n` +
-            `Please check your token (\`hf_...\`) or try switching models in the top HF Connection Bar.`,
-            'done'
-          )
+          log('DeepSeek Agent Error', result.error || 'Failed to process prompt', 'done')
         ]
       }))
     }

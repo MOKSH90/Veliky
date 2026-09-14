@@ -88,8 +88,8 @@ export function MarkdownOutputCanvas({ label, detail, time, file }: MarkdownOutp
         {time && <time className="text-xs text-slate-400 font-mono bg-slate-800/70 px-3 py-1 rounded-full border border-slate-700/50">{time}</time>}
       </div>
 
-      {/* Markdown Content Canvas with smooth vertical scrolling */}
-      <div className="markdown-readme-canvas text-sm text-slate-200 leading-relaxed font-sans space-y-4 pt-1 max-h-[550px] overflow-y-auto pr-3 custom-scrollbar">
+      {/* Markdown Content Canvas */}
+      <div className="markdown-readme-canvas text-sm text-slate-200 leading-relaxed font-sans space-y-4 pt-1">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{

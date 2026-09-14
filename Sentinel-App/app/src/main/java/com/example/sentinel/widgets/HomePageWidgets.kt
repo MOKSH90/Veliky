@@ -2,14 +2,17 @@ package com.example.sentinel.widgets
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.WbSunny
@@ -17,37 +20,73 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.round
 import kotlin.random.Random
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SentinelHeader(userName: String) {
-    TopAppBar(
-        title = {
-            Column {
+fun SentinelHeader(userName: String = "Moksh") {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Welcome, $userName",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    text = "SENTINEL",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
                 )
-                Text(
-                    text = "Refinery Unit 4 · Plant Wi-Fi",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(Color(0xFF00E5FF), shape = CircleShape)
                 )
             }
-        },
-        windowInsets = WindowInsets(0.dp),
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    )
+            Text(
+                text = "Refinery Unit 4 · Plant Wi-Fi",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF94A3B8)
+            )
+        }
+
+        // ON-PREMISE Badge
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xFF0F2B2E),
+            border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = "On-Premise",
+                    tint = Color(0xFF00E5FF),
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "ON-PREMISE",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF00E5FF)
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -60,13 +99,22 @@ fun SearchGoalBar(
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        placeholder = { Text("Ask Sentinel or type a goal...") },
+        placeholder = { Text("Ask Sentinel or type a goal...", color = Color(0xFF64748B)) },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
-                contentDescription = "Search"
+                contentDescription = "Search",
+                tint = Color(0xFF00E5FF)
             )
         },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color(0xFF00E5FF),
+            unfocusedBorderColor = Color(0xFF334155),
+            focusedContainerColor = Color(0xFF0F172A),
+            unfocusedContainerColor = Color(0xFF0F172A),
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White
+        ),
         singleLine = true
     )
 }
@@ -75,83 +123,126 @@ fun SearchGoalBar(
 fun ActionCard(
     modifier: Modifier = Modifier,
     icon: ImageVector,
+    iconBgColor: Color = Color(0xFF0E3A43),
+    iconTint: Color = Color(0xFF00E5FF),
     title: String,
     subtitle: String,
     onClick: () -> Unit
 ) {
-    ElevatedCard(
-        modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(16.dp)
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF161C24),
+        border = BorderStroke(1.dp, Color(0xFF263238))
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(iconBgColor, shape = RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = Color(0xFF94A3B8)
             )
         }
     }
 }
 
 @Composable
-fun AlertBanner(
-    assetName: String,
-    issue: String,
-    limit: String,
+fun CriticalSensorAlertCard(
+    assetName: String = "Pump P-204",
+    issue: String = "Vibration Spike Detected",
+    detail: String = "Current: 8.4 mm/s (Limit: < 7.1 mm/s)",
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF230D14),
+        border = BorderStroke(1.dp, Color(0xFF6B1D2F))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.NotificationsActive,
-                contentDescription = "Alert",
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = assetName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(Color(0xFF4A101D), shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Alert",
+                    tint = Color(0xFFFF4D4D),
+                    modifier = Modifier.size(22.dp)
                 )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = assetName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFFFF2A4B)
+                    ) {
+                        Text(
+                            text = "CRITICAL",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = issue,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFFF4D4D)
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = limit,
-                    style = MaterialTheme.typography.labelSmall
+                    text = detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFCBD5E1)
                 )
             }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "View Alert"
+                contentDescription = "View Alert",
+                tint = Color(0xFF94A3B8)
             )
         }
     }
@@ -159,40 +250,50 @@ fun AlertBanner(
 
 @Composable
 fun ShiftHandoverCard(onClick: () -> Unit) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-        ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF161C24),
+        border = BorderStroke(1.dp, Color(0xFF263238))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.WbSunny,
-                contentDescription = "Shift",
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFF332A15), shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.WbSunny,
+                    contentDescription = "Shift Handover",
+                    tint = Color(0xFFFFB800),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Shift Handover Briefing",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    text = "8:00 AM Shift Handover Briefing",
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Overnight activity summary ready",
-                    style = MaterialTheme.typography.bodySmall
+                    text = "AI summary of overnight activity ready",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF94A3B8)
                 )
             }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "View Briefing"
+                contentDescription = "View Briefing",
+                tint = Color(0xFF94A3B8)
             )
         }
     }
@@ -206,11 +307,13 @@ fun AssetCard(
     isWarning: Boolean,
     onClick: () -> Unit
 ) {
-    OutlinedCard(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF161C24),
+        border = BorderStroke(1.dp, Color(0xFF263238))
     ) {
         Row(
             modifier = Modifier
@@ -219,30 +322,42 @@ fun AssetCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(
+                            if (isWarning) Color(0xFFFF4D4D) else Color(0xFF10B981),
+                            shape = CircleShape
+                        )
                 )
-                Text(
-                    text = location,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = location,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = statusText,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    color = if (isWarning) Color(0xFFFF4D4D) else Color(0xFF10B981)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Details",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = Color(0xFF64748B),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -266,7 +381,6 @@ fun ConnectedHardwareCard(
     var currentLatency by remember { mutableIntStateOf(2) }
     var currentTokensPerSec by remember { mutableFloatStateOf(42.5f) }
 
-    // Real-time telemetry simulation loop
     LaunchedEffect(Unit) {
         while (isActive) {
             delay(1800L)
@@ -290,60 +404,52 @@ fun ConnectedHardwareCard(
         label = "RamAnim"
     )
 
-    ElevatedCard(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+        color = Color(0xFF161C24),
+        border = BorderStroke(1.dp, Color(0xFF263238))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Header Row: PC Name + Online Status Chip
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = serverName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    Text(
+                        text = serverName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                     Text(
                         text = "$ipAddress:$port • ${currentLatency}ms latency • ${currentTokensPerSec} t/s",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFF94A3B8)
                     )
                 }
 
-                // Online Badge
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    color = Color(0xFF0F2B2E),
+                    border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f))
                 ) {
                     Text(
                         text = "ONLINE",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = Color(0xFF00E5FF),
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = Color(0xFF263238))
 
-            // Hardware Specs Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -352,17 +458,16 @@ fun ConnectedHardwareCard(
                     text = gpuModel,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = Color(0xFF00E5FF)
                 )
                 Text(
                     text = "$currentTemp °C",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (currentTemp > 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (currentTemp > 60) Color(0xFFFF4D4D) else Color(0xFF94A3B8)
                 )
             }
 
-            // VRAM Usage Progress Bar
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -371,13 +476,13 @@ fun ConnectedHardwareCard(
                     Text(
                         text = "GPU VRAM",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFF94A3B8)
                     )
                     Text(
                         text = "$currentVram / $vramTotalGb GB",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Color.White
                     )
                 }
                 LinearProgressIndicator(
@@ -385,12 +490,11 @@ fun ConnectedHardwareCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    color = Color(0xFF00E5FF),
+                    trackColor = Color(0xFF1E293B),
                 )
             }
 
-            // System RAM Usage Progress Bar
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -399,13 +503,13 @@ fun ConnectedHardwareCard(
                     Text(
                         text = "System RAM",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFF94A3B8)
                     )
                     Text(
                         text = "$currentRam / $ramTotalGb GB",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Color.White
                     )
                 }
                 LinearProgressIndicator(
@@ -413,16 +517,15 @@ fun ConnectedHardwareCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp),
-                    color = MaterialTheme.colorScheme.secondary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    color = Color(0xFF38BDF8),
+                    trackColor = Color(0xFF1E293B),
                 )
             }
 
-            // Active LLM Model Badge
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer
+                color = Color(0xFF0F172A)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -432,17 +535,16 @@ fun ConnectedHardwareCard(
                     Text(
                         text = "Active LLM Model",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = Color(0xFF94A3B8)
                     )
                     Text(
                         text = activeModel,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = Color(0xFF00E5FF)
                     )
                 }
             }
         }
     }
 }
-

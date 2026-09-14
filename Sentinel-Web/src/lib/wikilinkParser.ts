@@ -126,17 +126,17 @@ export function buildWikilinkGraph(files: FileNode[], graphEdges?: { source: str
     }
   }
 
-  // Add automatic code imports if provided
+  // Add automatic code imports and structural connections if provided
   if (graphEdges) {
     for (const edge of graphEdges) {
-      if (edge.relation === 'imports') {
+      if (edge.relation === 'imports' || edge.relation === 'contains') {
         const key = `${edge.source}->${edge.target}`
         if (!edgeSet.has(key)) {
           edgeSet.add(key)
           edges.push({ source: edge.source, target: edge.target })
           inboundCount[edge.target] = (inboundCount[edge.target] ?? 0) + 1
           if (!linkMap[edge.source]) linkMap[edge.source] = []
-          linkMap[edge.source].push(edge.target) // Hack to increment source linkCount later
+          linkMap[edge.source].push(edge.target)
         }
       }
     }

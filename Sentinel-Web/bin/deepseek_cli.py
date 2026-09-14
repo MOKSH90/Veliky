@@ -94,13 +94,12 @@ try:
 except ImportError:
     _PROMPT_TOOLKIT_AVAILABLE = False
 
-DEFAULT_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 AVAILABLE_MODELS = [
-    "Qwen/Qwen2.5-0.5B-Instruct",
     "Qwen/Qwen2.5-1.5B-Instruct",
     "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-0.5B-Instruct",
     "Qwen/Qwen2.5-7B-Instruct",
-    "Qwen/Qwen2.5-VL-7B-Instruct",
     "google/gemma-3-1b-it",
 ]
 
@@ -152,6 +151,7 @@ if _PROMPT_TOOLKIT_AVAILABLE:
                     "/agent ": "Select agent persona (general, code, investigator, sre, researcher)",
                     "/model ": "Switch active LLM model",
                     "/thinking ": "Toggle CoT reasoning mode (on/off)",
+                    "/web": "Open SENTINEL Web Workbench UI in browser (http://localhost:5173)",
                     "/tools": "List active tools & security permissions",
                     "/clear": "Reset conversation memory session",
                     "/help": "Display command menu and help",
@@ -198,6 +198,7 @@ class DeepSeekCLI:
         print("  \033[1;36m/model <name>\033[0m    Switch active LLM model (e.g. /model Qwen/Qwen2.5-0.5B-Instruct)")
         print("  \033[1;36m/agent <name>\033[0m    Select agent persona (general, code, investigator, sre, researcher)")
         print("  \033[1;36m/thinking <on|off>\033[0m Toggle reasoning / chain-of-thought display mode")
+        print("  \033[1;36m/web\033[0m             Open SENTINEL Web Workbench UI in default browser (http://localhost:5173)")
         print("  \033[1;36m/tools\033[0m           List active agent tools and capability permissions")
         print("  \033[1;36m/clear\033[0m           Reset conversation session and memory")
         print("  \033[1;36m/help\033[0m            Display this menu")
@@ -216,70 +217,119 @@ class DeepSeekCLI:
         print("  • \033[1;32mverify_evidence\033[0m         Independent anti-hallucination verification engine")
         print("  • \033[1;32mwrite_vault_note\033[0m        Approved investigation note persistence (CAS SHA-256)\n")
 
-    def _execute_file_tools(self, user_input: str, response: str):
-        written_files = set()
+    def _execute_agent_tools(self, user_input: str, response: str) -> tuple[bool, list[str]]:
+        tool_outputs = []
+        has_tools = False
 
         def _resolve_path(raw: str) -> Path:
             clean = raw.strip(" `\"'\t\r\n")
             p = Path(clean).expanduser()
             return p.resolve() if p.is_absolute() else (Path.cwd() / p).resolve()
 
-        # 1. Match XML <write_file path="...">content</write_file>
+        # 1. Match <read_file path="..."/>
+        read_matches = re.findall(r'<read_file\s+path=["\']([^"\']+)["\']\s*/?>', response)
+        for filepath in read_matches:
+            has_tools = True
+            try:
+                p = _resolve_path(filepath)
+                if p.exists() and p.is_file():
+                    content = p.read_text(encoding="utf-8", errors="ignore")[:3500]
+                    print(f"\033[1;36m  🔍 [Agent Tool] Read File:\033[0m {p.name}", flush=True)
+                    tool_outputs.append(f"<tool_result tool=\"read_file\" path=\"{filepath}\">\n{content}\n</tool_result>")
+                else:
+                    tool_outputs.append(f"<tool_result tool=\"read_file\" path=\"{filepath}\">Error: File does not exist</tool_result>")
+            except Exception as exc:
+                tool_outputs.append(f"<tool_result tool=\"read_file\" path=\"{filepath}\">Error reading file: {exc}</tool_result>")
+
+        # 2. Match <list_dir path="..."/>
+        dir_matches = re.findall(r'<list_dir\s+path=["\']([^"\']+)["\']\s*/?>', response)
+        for dirpath in dir_matches:
+            has_tools = True
+            try:
+                p = _resolve_path(dirpath)
+                if p.exists() and p.is_dir():
+                    items = [f"{f.name}/" if f.is_dir() else f.name for f in p.iterdir() if not f.name.startswith(".")]
+                    res_str = f"Directory contents of {dirpath}:\n" + "\n".join(sorted(items)[:40])
+                    print(f"\033[1;36m  📁 [Agent Tool] List Dir:\033[0m {dirpath}", flush=True)
+                    tool_outputs.append(f"<tool_result tool=\"list_dir\" path=\"{dirpath}\">\n{res_str}\n</tool_result>")
+                else:
+                    tool_outputs.append(f"<tool_result tool=\"list_dir\" path=\"{dirpath}\">Error: Directory does not exist</tool_result>")
+            except Exception as exc:
+                tool_outputs.append(f"<tool_result tool=\"list_dir\" path=\"{dirpath}\">Error listing dir: {exc}</tool_result>")
+
+        # 3. Match <grep_search query="..." path="..."/>
+        grep_matches = re.findall(r'<grep_search\s+query=["\']([^"\']+)["\'](?:\s+path=["\']([^"\']+)["\'])?\s*/?>', response)
+        for query, search_path in grep_matches:
+            has_tools = True
+            target_path = _resolve_path(search_path if search_path else ".")
+            try:
+                print(f"\033[1;36m  🔎 [Agent Tool] Grep Search:\033[0m '{query}' in {target_path.name}", flush=True)
+                cmd_str = f"rg -n -i '{query}' '{target_path}' | head -n 25"
+                res = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=15)
+                output = res.stdout.strip() if res.stdout else "No matches found."
+                tool_outputs.append(f"<tool_result tool=\"grep_search\" query=\"{query}\">\n{output}\n</tool_result>")
+            except Exception as exc:
+                tool_outputs.append(f"<tool_result tool=\"grep_search\" query=\"{query}\">Error: {exc}</tool_result>")
+
+        # 4. Match <write_file path="...">content</write_file>
         xml_matches = re.findall(r'<write_file\s+path=["\']([^"\']+)["\']>([\s\S]*?)</write_file>', response)
         for filepath, content in xml_matches:
+            has_tools = True
             try:
                 p = _resolve_path(filepath)
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(content.strip(), encoding="utf-8")
-                written_files.add(str(p))
-                print(f"\033[1;32m  📁 [SENTINEL File Tool] Created file:\033[0m {p} ({len(content)} bytes)")
+                print(f"\033[1;32m  📁 [Agent Tool] Created File:\033[0m {p} ({len(content)} bytes)", flush=True)
+                tool_outputs.append(f"<tool_result tool=\"write_file\" path=\"{filepath}\">Success: Wrote {len(content)} bytes</tool_result>")
             except Exception as exc:
-                print(f"\033[1;31m  ❌ [SENTINEL File Tool Error] Failed to write {filepath}: {exc}\033[0m")
+                tool_outputs.append(f"<tool_result tool=\"write_file\" path=\"{filepath}\">Error: {exc}</tool_result>")
 
-        # 2. Match markdown ### File: filepath \n ```lang \n content \n ```
+        # 5. Match markdown ### File: filepath
         md_matches = re.findall(r'###\s+File:\s*([^\n]+)\s*\n```[a-zA-Z0-9_-]*\s*\n([\s\S]*?)\n```', response)
         for raw_path, content in md_matches:
+            has_tools = True
             try:
                 p = _resolve_path(raw_path)
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(content, encoding="utf-8")
-                written_files.add(str(p))
-                print(f"\033[1;32m  📁 [SENTINEL File Tool] Created file:\033[0m {p} ({len(content)} bytes)")
+                print(f"\033[1;32m  📁 [Agent Tool] Created File:\033[0m {p} ({len(content)} bytes)", flush=True)
+                tool_outputs.append(f"<tool_result tool=\"write_file\" path=\"{raw_path}\">Success: Wrote {len(content)} bytes</tool_result>")
             except Exception as exc:
-                print(f"\033[1;31m  ❌ [SENTINEL File Tool Error] Failed to write {raw_path}: {exc}\033[0m")
+                tool_outputs.append(f"<tool_result tool=\"write_file\" path=\"{raw_path}\">Error: {exc}</tool_result>")
 
-        # 3. Fallback: If prompt explicitly asks to create/write/save a file (e.g. "create a python file named 2.py")
-        if not written_files:
+        # 6. Fallback file creation if prompt asks explicitly
+        if not xml_matches and not md_matches:
             prompt_file_match = re.search(r'\b([a-zA-Z0-9_\-./]+\.(?:py|js|ts|jsx|tsx|html|css|json|sh|md|txt|yaml|yml|c|cpp|h|rs|go|java|pyw))\b', user_input, re.IGNORECASE)
             if prompt_file_match:
                 target_filename = prompt_file_match.group(1)
                 code_blocks = re.findall(r'```[a-zA-Z0-9_-]*\s*\n([\s\S]*?)\n```', response)
-                if not code_blocks and ("def " in response or "import " in response or "function" in response or "const " in response):
-                    code_blocks = [response.strip()]
                 if code_blocks:
                     code_content = code_blocks[0]
                     try:
                         p = _resolve_path(target_filename)
                         p.parent.mkdir(parents=True, exist_ok=True)
                         p.write_text(code_content, encoding="utf-8")
-                        written_files.add(str(p))
-                        print(f"\033[1;32m  📁 [SENTINEL File Tool] Automatically created file:\033[0m {p} ({len(code_content)} bytes)")
+                        print(f"\033[1;32m  📁 [Agent Tool] Created File:\033[0m {p} ({len(code_content)} bytes)", flush=True)
                     except Exception as exc:
-                        print(f"\033[1;31m  ❌ [SENTINEL File Tool Error] Failed to write {target_filename}: {exc}\033[0m")
+                        pass
 
-        # 4. Match <run_cmd>cmd</run_cmd>
+        # 7. Match <run_cmd>cmd</run_cmd>
         cmd_matches = re.findall(r'<run_cmd>([\s\S]*?)</run_cmd>', response)
         for cmd in cmd_matches:
             cmd_str = cmd.strip()
             if cmd_str:
+                has_tools = True
                 try:
-                    print(f"\033[1;33m  ⚡ [SENTINEL Shell Tool] Executing command:\033[0m {cmd_str}")
+                    print(f"\033[1;33m  ⚡ [Agent Shell Tool] Executing:\033[0m {cmd_str}", flush=True)
                     res = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=30)
-                    out = res.stdout if res.stdout else res.stderr
-                    if out.strip():
-                        print(f"\033[90m{out.strip()}\033[0m")
+                    out = (res.stdout + ("\n" + res.stderr if res.stderr else "")).strip()[:2000]
+                    if out:
+                        print(f"\033[90m{out[:300]}\033[0m", flush=True)
+                    tool_outputs.append(f"<tool_result tool=\"run_cmd\" command=\"{cmd_str}\">\nExit Code: {res.returncode}\nOutput:\n{out}\n</tool_result>")
                 except Exception as exc:
-                    print(f"\033[1;31m  ❌ [SENTINEL Shell Tool Error] {exc}\033[0m")
+                    tool_outputs.append(f"<tool_result tool=\"run_cmd\" command=\"{cmd_str}\">Error: {exc}</tool_result>")
+
+        return has_tools, tool_outputs
 
     def load_model_if_needed(self):
         if self._llm is not None:
@@ -308,74 +358,251 @@ class DeepSeekCLI:
         t0 = time.time()
         response = ""
 
+        # Automatic Workspace Directory & File Inspection
+        workspace_context = ""
+        read_files = set()
+        try:
+            target_dir = None
+
+            # 1. Direct path regex (e.g. ~/Projects/legit, /path/to/dir, file.md)
+            path_candidates = re.findall(r'(?:~[/\w.-]+|[/\w.-]+(?:/[/\w.-]+)+|[\w.-]+\.(?:md|txt|json|py|js|yml|yaml))', user_input)
+            for path_str in path_candidates:
+                clean_str = path_str.strip(" `\"'")
+                p = Path(clean_str).expanduser()
+                if not p.is_absolute():
+                    p = (Path.cwd() / p).resolve()
+                else:
+                    p = p.resolve()
+
+                if p.exists():
+                    if p.is_dir():
+                        target_dir = p
+                        break
+                    elif p.is_file():
+                        text = p.read_text(encoding="utf-8", errors="ignore")[:1500]
+                        workspace_context += f"\n=== Document File: {p.name} ===\n{text}\n\n"
+                        read_files.add(p.resolve())
+                        print(f"\033[90m📄 [Workspace Inspector] Read file: {p}\033[0m", flush=True)
+                        break
+
+            # 2. Fuzzy directory name search (e.g. "legit directory", "legit folder", "analyze legit")
+            if not target_dir and not workspace_context:
+                words = re.findall(r'\b[a-zA-Z0-9_-]{3,30}\b', user_input)
+                search_roots = [Path.cwd(), Path.home() / "Projects", Path.home()]
+                ignored_words = {"the", "and", "for", "you", "can", "please", "directory", "folder", "project", "analyze", "check", "explain", "about", "what", "with", "this", "from"}
+                for word in words:
+                    if word.lower() in ignored_words:
+                        continue
+                    for root in search_roots:
+                        if root.exists():
+                            candidate = root / word
+                            if candidate.exists() and candidate.is_dir():
+                                target_dir = candidate.resolve()
+                                break
+                            matches = [d for d in root.iterdir() if d.is_dir() and d.name.lower() == word.lower()]
+                            if matches:
+                                target_dir = matches[0].resolve()
+                                break
+                    if target_dir:
+                        break
+
+            # 3. Comprehensive Project Directory & Architecture Inspection
+            if target_dir:
+                workspace_context += f"\n--- WORKSPACE PROJECT DIRECTORY: {target_dir.name} ({target_dir}) ---\n"
+                
+                # 3a. Top-level files and subdirectories
+                top_items = [f.name for f in target_dir.iterdir() if not f.name.startswith(".")]
+                workspace_context += f"Root Structure: {', '.join(sorted(top_items)[:40])}\n\n"
+                
+                # 3b. Read Top-Level README and architecture documentation FIRST
+                doc_candidates = [
+                    target_dir / "readme.md", target_dir / "README.md", target_dir / "Readme.md",
+                    target_dir / "ARCHITECTURE.md", target_dir / "connection.md", target_dir / "API.md"
+                ]
+                for doc in doc_candidates:
+                    if doc.exists() and doc.is_file():
+                        try:
+                            rel_path = doc.relative_to(target_dir)
+                            text = doc.read_text(encoding="utf-8", errors="ignore")[:3000]
+                            workspace_context += f"=== DOCUMENT: {rel_path} ===\n{text}\n\n"
+                            read_files.add(doc.resolve())
+                            print(f"\033[90m📄 [Workspace Inspector] Read primary document: {rel_path}\033[0m", flush=True)
+                        except Exception:
+                            pass
+
+                # 3c. Inspect Subdirectories for READMEs and Manifests
+                manifest_names = ("package.json", "docker-compose.yml", "docker-compose.yaml", "build.gradle.kts", "build.gradle", "requirements.txt", "pyproject.toml", "Cargo.toml", "go.mod", "API.md", "readme.md", "README.md")
+                subdirs = [d for d in target_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
+                for subdir in subdirs[:6]:
+                    sub_items = [f.name for f in subdir.iterdir() if not f.name.startswith(".")]
+                    workspace_context += f"Module Directory [{subdir.name}]: {', '.join(sorted(sub_items)[:25])}\n"
+                    for m_name in manifest_names:
+                        m_path = subdir / m_name
+                        if m_path.exists() and m_path.is_file() and m_path.resolve() not in read_files:
+                            try:
+                                text = m_path.read_text(encoding="utf-8", errors="ignore")[:1500]
+                                rel_path = m_path.relative_to(target_dir)
+                                workspace_context += f"=== Sub-Module File ({rel_path}) ===\n{text}\n\n"
+                                read_files.add(m_path.resolve())
+                            except Exception:
+                                pass
+
+                # 3d. Fallback rglob for any additional .md documentation
+                if len(read_files) < 4:
+                    for doc_file in sorted(target_dir.rglob("*.md")):
+                        if len(read_files) >= 5:
+                            break
+                        if any(x in doc_file.parts for x in ("node_modules", ".git", "build", "dist", ".agents", ".codex", ".idea")):
+                            continue
+                        if doc_file.resolve() not in read_files:
+                            try:
+                                rel_path = doc_file.relative_to(target_dir)
+                                text = doc_file.read_text(encoding="utf-8", errors="ignore")[:1500]
+                                workspace_context += f"=== DOCUMENT: {rel_path} ===\n{text}\n\n"
+                                read_files.add(doc_file.resolve())
+                            except Exception:
+                                pass
+
+            # 4. Automatically locate and read requested files/classes mentioned in prompt across project roots
+            file_tokens = re.findall(r'\b[a-zA-Z0-9_\-.]+\.[a-zA-Z0-9_-]+\b', user_input) + re.findall(r'\b[A-Z][a-zA-Z0-9_]{3,}\b', user_input)
+            search_roots = [target_dir] if target_dir else [Path.cwd(), Path.home() / "Projects"]
+            ignored_prompt_words = {"the", "file", "code", "show", "what", "here", "with", "this", "from", "main", "vaultkey", "projects", "present", "directory", "content", "contents", "readme.md"}
+            
+            for word in file_tokens:
+                if len(word) < 4 or word.lower() in ignored_prompt_words:
+                    continue
+                found_matches = []
+                for root in search_roots:
+                    if root and root.exists():
+                        for matched_path in root.rglob(f"*{word}*"):
+                            if matched_path.is_file():
+                                if any(x in matched_path.parts for x in ("node_modules", ".git", "build", "dist", ".idea", ".gradle")):
+                                    continue
+                                found_matches.append(matched_path)
+                        if found_matches:
+                            break
+                for fp in found_matches[:2]:
+                    if fp.resolve() not in read_files:
+                        try:
+                            text = fp.read_text(encoding="utf-8", errors="ignore")[:4000]
+                            workspace_context += f"\n=== REQUESTED FILE ({fp}) ===\n{text}\n\n"
+                            read_files.add(fp.resolve())
+                            print(f"\033[1;32m📄 [Workspace Inspector] Located & Read requested file:\033[0m {fp}", flush=True)
+                        except Exception:
+                            pass
+
+            if read_files:
+                print(f"\033[90m📂 [Workspace Inspector] Found & Indexed {len(read_files)} file(s)\033[0m", flush=True)
+        except Exception:
+            pass
+
         # Perform automatic vector DB / vault retrieval
         rag_context = ""
         if self.service:
             try:
-                retrieved = self.service.search_documents(user_input, top_k=3)
+                retrieved = self.service.search_documents(user_input, top_k=2)
                 items = retrieved.get("results", [])
                 if items:
                     rag_context = "\n\n--- RETRIEVED KNOWLEDGE VAULT EVIDENCE ---\n"
                     for idx, item in enumerate(items, 1):
                         title = item.get("title") or item.get("source") or f"Evidence {idx}"
-                        chunk = item.get("chunk") or str(item.get("reading", ""))
+                        chunk = (item.get("chunk") or str(item.get("reading", "")))[:800]
                         rag_context += f"[Source #{idx}: {title}]\n{chunk}\n\n"
-                    print(f"\033[90m🔍 [Milvus Vector RAG] Retrieved {len(items)} matching evidence document(s) from Knowledge Vault\033[0m")
+                    print(f"\033[90m🔍 [Milvus Vector RAG] Retrieved {len(items)} matching evidence document(s) from Knowledge Vault\033[0m", flush=True)
             except Exception:
                 pass
 
-        def _do_generate():
-            nonlocal response
-            self.load_model_if_needed()
-            if self._llm and self._tokenizer:
-                import torch
-                device = next(self._llm.parameters()).device
-                system_prompt = (
-                    f"You are SENTINEL, a sovereign agent running in {self.agent} mode.\n"
-                    "You have direct access to local workspace files and the SENTINEL Knowledge Vault RAG vector database.\n"
-                    "Answer the user's query precisely using the retrieved evidence below when provided:\n"
-                    f"{rag_context}\n"
-                    "When asked to write code or create files, use:\n"
-                    "### File: `path/to/filename` \n```language\n<code content>\n```\n"
-                    "When asked to run commands, use:\n"
-                    "<run_cmd>command</run_cmd>"
-                )
-                prompt = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n<|im_start|>assistant\n"
-                inputs = self._tokenizer(prompt, return_tensors="pt").to(device)
-                with torch.no_grad():
-                    outputs = self._llm.generate(
-                        **inputs,
-                        max_new_tokens=512,
-                        do_sample=True,
-                        temperature=0.3,
-                        pad_token_id=self._tokenizer.eos_token_id,
-                    )
-                in_len = inputs["input_ids"].shape[1]
-                response = self._tokenizer.decode(outputs[0][in_len:], skip_special_tokens=True).strip()
-            else:
-                response = f"SENTINEL Agent ({self.agent} mode): Processed request '{user_input}'."
+        # Multi-Turn Autonomous Agent Execution Loop
+        max_agent_turns = 3
+        current_turn = 0
+        agent_history = []
+        final_response = ""
 
-        if self.thinking and _rich_console:
-            with _rich_console.status("[magenta]thinking...[/magenta]", spinner="dots"):
+        while current_turn < max_agent_turns:
+            current_turn += 1
+            response = ""
+
+            def _do_generate():
+                nonlocal response
+                self.load_model_if_needed()
+                if self._llm and self._tokenizer:
+                    import torch
+                    device = next(self._llm.parameters()).device
+                    system_prompt = (
+                        f"You are SENTINEL, an Autonomous Systems Architect and Lead Engineer running in {self.agent} mode.\n"
+                        "INSTRUCTIONS & AGENTIC TOOL SUITE:\n"
+                        "You can inspect files, search code, write code, and run commands autonomously using XML tool tags:\n"
+                        "- Read file: <read_file path=\"path/to/file\"/>\n"
+                        "- List directory: <list_dir path=\"path/to/dir\"/>\n"
+                        "- Grep search code: <grep_search query=\"keyword\" path=\"optional/dir\"/>\n"
+                        "- Create/Update file: <write_file path=\"path/to/file\">content</write_file>\n"
+                        "- Run bash command: <run_cmd>command</run_cmd>\n\n"
+                        "CRITICAL NO-HALLUCINATION CODE RULE:\n"
+                        "When asked to show, display, or analyze code from a file (e.g. MainActivity.kt or auth.py), DO NOT output fake, dummy, or simplified 'Hello World' placeholder code!\n"
+                        "You MUST output the REAL source code provided in the workspace context or retrieved via tools.\n"
+                        "If you need to view a file that is not in context, call <read_file path=\"path/to/file\"/> or <grep_search query=\"keyword\"/> FIRST to retrieve the real file from disk!\n\n"
+                        "When asked to analyze or explain a project directory, DO NOT just list filenames or output directory trees.\n"
+                        "Instead, provide a comprehensive, deep technical explanation covering:\n"
+                        "1. WHAT the project does in real-world terms (its main purpose, functionality, and problem it solves).\n"
+                        "2. HOW the code works under the hood (architecture, components, database, and security mechanisms).\n"
+                        "3. CORE DATA & WORKFLOW (step-by-step request flow).\n\n"
+                        f"{workspace_context}\n"
+                        f"{rag_context}\n"
+                    )
+
+                    history_str = ""
+                    for turn_item in agent_history:
+                        history_str += f"<|im_start|>assistant\n{turn_item['assistant']}<|im_end|>\n"
+                        if turn_item.get("tool_results"):
+                            history_str += f"<|im_start|>user\n{turn_item['tool_results']}<|im_end|>\n"
+
+                    prompt = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n{history_str}<|im_start|>assistant\n"
+                    inputs = self._tokenizer(prompt, return_tensors="pt").to(device)
+                    with torch.no_grad():
+                        outputs = self._llm.generate(
+                            **inputs,
+                            max_new_tokens=400,
+                            do_sample=True,
+                            temperature=0.3,
+                            repetition_penalty=1.15,
+                            pad_token_id=self._tokenizer.eos_token_id,
+                        )
+                    in_len = inputs["input_ids"].shape[1]
+                    response = self._tokenizer.decode(outputs[0][in_len:], skip_special_tokens=True).strip()
+                else:
+                    response = f"SENTINEL Agent ({self.agent} mode): Processed request '{user_input}'."
+
+            if self.thinking and _rich_console and sys.stdout.isatty():
+                with _rich_console.status(f"[magenta]thinking (step {current_turn})...[/magenta]", spinner="dots"):
+                    _do_generate()
+            elif self.thinking:
+                print(f"\033[1;35mthinking (step {current_turn})...\033[0m", flush=True)
                 _do_generate()
-        elif self.thinking:
-            print("\033[1;35mthinking...\033[0m")
-            _do_generate()
-        else:
-            _do_generate()
+            else:
+                _do_generate()
+
+            final_response = response
+            has_tools, tool_outputs = self._execute_agent_tools(user_input, response)
+
+            if has_tools and tool_outputs:
+                tool_results_combined = "\n".join(tool_outputs)
+                agent_history.append({
+                    "assistant": response,
+                    "tool_results": tool_results_combined
+                })
+            else:
+                break
 
         elapsed = time.time() - t0
-        print(f"\n\033[1;32mSENTINEL Agent\033[0m \033[90m({elapsed:.2f}s)\033[0m:")
-        if _rich_console:
-            _rich_console.print(Markdown(response))
+        print(f"\n\033[1;32mSENTINEL Agent\033[0m \033[90m({elapsed:.2f}s)\033[0m:", flush=True)
+        if _rich_console and sys.stdout.isatty():
+            _rich_console.print(Markdown(final_response))
         else:
-            print(response)
+            print(final_response, flush=True)
         print()
 
-        # Automatically execute file tool calls & write code to disk
-        self._execute_file_tools(user_input, response)
-
-        self.history.append({"user": user_input, "assistant": response})
+        self.history.append({"user": user_input, "assistant": final_response})
+        return final_response
 
     def run(self):
         self.print_header()
@@ -456,6 +683,16 @@ class DeepSeekCLI:
                         print("\033[33mThinking mode disabled [OFF]\033[0m\n")
                 else:
                     print(f"Thinking mode is currently: {'ON' if self.thinking else 'OFF'}\n")
+                continue
+
+            if user_input == "/web":
+                url = "http://localhost:5173"
+                print(f"\n\033[1;32m🌐 Opening SENTINEL Web Workbench UI in browser at {url}...\033[0m\n")
+                try:
+                    import webbrowser
+                    webbrowser.open(url)
+                except Exception as exc:
+                    print(f"\033[1;31m❌ Could not launch browser automatically: {exc}\033[0m\n")
                 continue
 
             if user_input == "/tools":

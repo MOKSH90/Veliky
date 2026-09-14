@@ -1,129 +1,259 @@
-import { RotateCcw, TerminalSquare, Network, Activity, FileCode2, ArrowRight, CheckCircle2, LoaderCircle, ShieldAlert, Bot } from 'lucide-react'
+import { RotateCcw, TerminalSquare, ArrowRight, Bot, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { lazy, Suspense } from 'react'
 import { CommandInput } from './CommandInput'
-import { PlanView } from './PlanView'
-import { ApprovalCard } from './ApprovalCard'
-import { VerificationView } from './VerificationView'
 import { MarkdownOutputCanvas } from './MarkdownOutputCanvas'
 import { useEdithStore } from '../../store/useEdithStore'
 
 const quickGoals = [
-  'Write a Python script to sort a list of numbers using quicksort with comments.',
-  'Explain async/await syntax in TypeScript with a practical example.',
-  'Design a REST API structure for a user authentication microservice.',
+  'Analyze the workspace codebase and explain main functions.',
+  'Write a Python script for quicksort with clear comments.',
+  'Explain async/await syntax in TypeScript with an example.',
 ]
 
+export function AgentWorkspace() {
+  const state = useEdithStore((s) => s.agentState)
+  const goal = useEdithStore((s) => s.currentGoal)
+  const reset = useEdithStore((s) => s.resetAgent)
+  const logs = useEdithStore((s) => s.executionLog)
+  const submit = useEdithStore((s) => s.submitGoal)
+  const activeAgent = useEdithStore((s) => s.activeAgent)
+  const activeModel = useEdithStore((s) => s.activeModel)
+  const idle = state === 'idle'
 
-const MobiusScene=lazy(()=>import('../mobius/MobiusScene').then((mod)=>({default:mod.MobiusScene})))
-
-export function AgentWorkspace(){
-  const state=useEdithStore((s)=>s.agentState)
-  const goal=useEdithStore((s)=>s.currentGoal)
-  const action=useEdithStore((s)=>s.currentAction)
-  const reset=useEdithStore((s)=>s.resetAgent)
-  const logs=useEdithStore((s)=>s.executionLog)
-  const activeFiles=useEdithStore((s)=>s.activeFiles)
-  const workspace=useEdithStore((s)=>s.currentWorkspace)
-  const graphNodes=useEdithStore((s)=>s.graphNodes)
-  const graphEdges=useEdithStore((s)=>s.graphEdges)
-  const submit=useEdithStore((s)=>s.submitGoal)
-  const setView=useEdithStore((s)=>s.setActiveView)
-  const idle=state==='idle'
-
-  return <div className={`agent-view ${idle?'idle':'working'} state-${state}`}>
-    <div className="agent-grid-bg"/>
-    <div className={idle?'mobius-layer':'mobius-layer working'} aria-label={`SENTINEL core visualization: ${state.replace('_',' ')}`}>
-      <Suspense fallback={<div className="mobius-fallback" aria-hidden="true"/>}><MobiusScene state={state} dimmed={!idle}/></Suspense>
-    </div>
-
-    {idle&&<div className="core-readouts" aria-hidden="true">
-      <div className="readout left"><span>CONTEXT</span><b>ONLINE</b><small>{workspace?.fileCount??graphNodes.filter((n)=>n.kind==='file').length} files indexed</small></div>
-      <div className="readout right"><span>GRAPH</span><b>CONNECTED</b><small>{graphEdges.length} relationships</small></div>
-    </div>}
-
-    <AnimatePresence mode="wait">
-      {idle ? <motion.div key="idle" className="idle-content" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0,y:-10}}>
-        <div className="idle-copy">
-          <h1>What do you want SENTINEL to accomplish?</h1>
-        </div>
-        <CommandInput/>
-        <div className="quick-goals">{quickGoals.map((q,i)=><motion.button key={q} onClick={()=>submit(q)} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{delay:.08*i}}><span>{i+1}</span>{q}<ArrowRight size={12}/></motion.button>)}</div>
-      </motion.div> : <motion.div key="work" className="execution-overlay" initial={{opacity:0,x:-18}} animate={{opacity:1,x:0}}>
-        <div className="execution-head">
-          <div>
-            <span className="eyebrow">ACTIVE GOAL</span>
-            <h1>{goal}</h1>
-            <div className={`execution-state state-${state}`}><i/>{state.replace('_',' ')}</div>
+  return (
+    <div
+      className="agent-view-clean"
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        background: 'var(--surface-bg, #0d0d11)',
+        color: '#e2e8f0',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      {/* Top Chat Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 24px',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          zIndex: 10,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
+            <Bot size={18} />
           </div>
-          <button className="quiet-btn" onClick={reset}><RotateCcw size={14}/>Reset</button>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+              SENTINEL Agent ({activeAgent.toUpperCase()})
+            </h2>
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+              Model: {activeModel} | Status: <strong style={{ color: state === 'executing' ? '#38bdf8' : '#34d399' }}>{state.toUpperCase()}</strong>
+            </span>
+          </div>
         </div>
 
-        {/* Prominent Agent Stream Log & Response Box */}
-        <details open className="execution-stream-details">
-          <summary className="execution-summary">
-            {state === 'success' || state === 'failed' ? <CheckCircle2 size={14} className="action-success"/> : <LoaderCircle size={14} className="spin action-running"/>}
-            <span>{state === 'success' ? 'Execution Completed' : 'Agent Executing...'} ({logs.length} events)</span>
-          </summary>
-          <div className="execution-log-list space-y-4 pt-3">
-            {logs.map((log) => {
-              const isUserPrompt = log.label.includes('User Prompt')
-              const isAssistantResponse = log.label.includes('SENTINEL') || log.label.includes('Explanation') || log.label.includes('Assistant')
+        {!idle && (
+          <button
+            type="button"
+            onClick={reset}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 500,
+              background: 'rgba(255, 255, 255, 0.06)',
+              color: '#cbd5e1',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              cursor: 'pointer',
+            }}
+          >
+            <RotateCcw size={14} />
+            <span>New Chat</span>
+          </button>
+        )}
+      </div>
 
-              if (isUserPrompt) {
+      {/* Main Conversation Canvas */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          maxWidth: '960px',
+          width: '100%',
+          margin: '0 auto',
+        }}
+      >
+        <AnimatePresence mode="wait">
+          {idle ? (
+            <motion.div
+              key="idle-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '60vh',
+                textAlign: 'center',
+                gap: '24px',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: '20px',
+                    background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2))',
+                    border: '1px solid rgba(99,102,241,0.3)',
+                    boxShadow: '0 0 30px rgba(99,102,241,0.15)',
+                  }}
+                >
+                  <Sparkles size={32} style={{ color: '#a78bfa' }} />
+                </div>
+                <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+                  What do you want SENTINEL to accomplish?
+                </h1>
+                <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '480px', margin: 0 }}>
+                  Ask any question, request code generation, or analyze your project workspace files.
+                </p>
+              </div>
+
+              <div style={{ width: '100%', maxWidth: '680px' }}>
+                <CommandInput />
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  width: '100%',
+                  maxWidth: '680px',
+                }}
+              >
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Suggested Prompts
+                </span>
+                {quickGoals.map((q, i) => (
+                  <motion.button
+                    key={q}
+                    type="button"
+                    onClick={() => submit(q)}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 * i }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      color: '#e2e8f0',
+                      fontSize: '13px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{q}</span>
+                    <ArrowRight size={14} style={{ color: '#64748b' }} />
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="chat-messages"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}
+            >
+              {/* Render simple text model delivery */}
+              {logs.filter(log => log.label.includes('User Prompt') || log.label.includes('SENTINEL') || log.label.includes('Explanation') || log.label.includes('Assistant')).map((log) => {
+                const isUserPrompt = log.label.includes('User Prompt')
+
+                if (isUserPrompt) {
+                  return (
+                    <motion.div
+                      key={log.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{
+                        alignSelf: 'flex-end',
+                        maxWidth: '85%',
+                        background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.6), rgba(30, 64, 175, 0.4))',
+                        border: '1px solid rgba(59, 130, 246, 0.35)',
+                        borderRadius: '16px 16px 4px 16px',
+                        padding: '16px 20px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          You
+                        </span>
+                        {log.time && <time style={{ fontSize: '11px', color: '#94a3b8' }}>{log.time}</time>}
+                      </div>
+                      <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6', color: '#f8fafc', whiteSpace: 'pre-wrap' }}>
+                        {log.detail}
+                      </p>
+                    </motion.div>
+                  )
+                }
+
                 return (
                   <motion.div
                     key={log.id}
-                    className="bg-blue-950/50 border border-blue-500/40 rounded-xl p-4 text-slate-100 flex items-start space-x-3.5 shadow-lg"
-                    initial={{ opacity: 0, y: 4 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
+                    style={{ width: '100%' }}
                   >
-                    <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg shrink-0 border border-blue-500/30">
-                      <TerminalSquare size={18} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">User Prompt</span>
-                        <time className="text-[11px] text-slate-400 font-mono">{log.time}</time>
-                      </div>
-                      <p className="text-sm font-medium text-slate-100 mt-1.5 whitespace-pre-wrap leading-relaxed">{log.detail}</p>
-                    </div>
+                    <MarkdownOutputCanvas label="SENTINEL AI" detail={log.detail} time={log.time} file={log.file} />
                   </motion.div>
                 )
-              }
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-              if (isAssistantResponse) {
-                return (
-                  <motion.div key={log.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-                    <MarkdownOutputCanvas label={log.label} detail={log.detail} time={log.time} file={log.file} />
-                  </motion.div>
-                )
-              }
-
-              return (
-                <motion.div key={log.id} className={`execution-log ${log.status}`} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}>
-                  <time>{log.time}</time>
-                  <span className="log-node" />
-                  <div>
-                    <strong className="flex items-center space-x-1.5 text-cyan-400">
-                      <Bot size={13} />
-                      <span>{log.label}</span>
-                    </strong>
-                    <p className="text-slate-200 mt-1 leading-relaxed">{log.detail}</p>
-                    {log.file && <code><FileCode2 size={11} />{log.file}</code>}
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </details>
-
-        {state==='waiting_approval'&&<ApprovalCard/>}
-        {(state==='verifying'||state==='success')&&<VerificationView success={state==='success'}/>} 
-        {state==='failed'&&<section className="failed-state"><strong>EXECUTION STOPPED</strong><span>No controlled changes were applied after rejection.</span></section>}
-        {state==='success'&&<div className="success-actions"><button onClick={()=>setView('activity')}><Activity size={14}/>Open activity</button><button onClick={()=>setView('graph')}><Network size={14}/>Inspect graph</button></div>}
-        <section className="follow-up-composer" style={{ marginTop: "24px", borderBottom: "none" }}><div className="section-label">FOLLOW-UP COMMAND</div><CommandInput compact/></section>
-      </motion.div>}
-    </AnimatePresence>
-  </div>
+      {/* Bottom Command Input Bar for ongoing chat */}
+      {!idle && (
+        <div
+          style={{
+            padding: '14px 24px',
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(12px)',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            maxWidth: '960px',
+            width: '100%',
+            margin: '0 auto',
+          }}
+        >
+          <CommandInput compact />
+        </div>
+      )}
+    </div>
+  )
 }

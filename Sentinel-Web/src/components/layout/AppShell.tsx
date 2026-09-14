@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { TopBar } from './TopBar'
-import { HFConnectionBar } from './HFConnectionBar'
 import { Sidebar } from './Sidebar'
 import { ProjectBar } from './ProjectBar'
 import { ProfilePanel } from '../profile/ProfilePanel'
@@ -10,7 +9,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       <TopBar />
-      <HFConnectionBar />
       <div className="body-shell" style={{ flex: '1 1 0%', minHeight: 0, height: '100%', overflow: 'hidden' }}>
         <Sidebar />
         <div className="workspace-wrapper" style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, overflow: 'hidden' }}>
@@ -25,4 +23,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   )
 }
-

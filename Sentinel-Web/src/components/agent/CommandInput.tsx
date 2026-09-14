@@ -10,7 +10,31 @@ export function CommandInput({compact=false}:{compact?:boolean}){
   const submit=useEdithStore((s)=>s.submitGoal)
   const history=useEdithStore((s)=>s.commandHistory)
   const fileRef=useRef<HTMLInputElement>(null)
-  const send=()=>{const v=value.trim();if(!v)return;submit(v);setValue('');setAttachments([]);setHistoryIndex(-1);setTimeout(()=>document.querySelectorAll('textarea').forEach(t=>t.style.height='auto'), 10)}
+  const send = async () => {
+    const v = value.trim()
+    if (!v && !attachments.length) return
+
+    let fullPrompt = v
+    if (attachments.length > 0) {
+      const fileContents = await Promise.all(
+        attachments.map(async (file) => {
+          try {
+            const text = await file.text()
+            return `\n=== Attached File: ${file.name} ===\n${text}\n`
+          } catch {
+            return `\n=== Attached File: ${file.name} ===\n[Error reading file]\n`
+          }
+        })
+      )
+      fullPrompt = `${v ? v + '\n\n' : ''}${fileContents.join('\n')}`
+    }
+
+    submit(fullPrompt)
+    setValue('')
+    setAttachments([])
+    setHistoryIndex(-1)
+    setTimeout(() => document.querySelectorAll('textarea').forEach((t) => (t.style.height = 'auto')), 10)
+  }
   const add=(list:FileList|null)=>{if(list?.length)setAttachments((prev)=>[...prev,...Array.from(list)].slice(0,8))}
   const navigateHistory=(direction:1|-1)=>{
     if(!history.length)return
@@ -26,7 +50,7 @@ export function CommandInput({compact=false}:{compact?:boolean}){
       if(e.key==='ArrowDown'&&e.altKey){e.preventDefault();navigateHistory(-1)}
     }} placeholder={compact?'Ask a follow-up or give SENTINEL the next goal…':'Give SENTINEL a goal, not a conversation…'} rows={1}/>
     <AnimatePresence>{attachments.length>0&&<motion.div className="attachment-chips" initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}>{attachments.map((file,i)=><span key={`${file.name}-${i}`}><Paperclip size={11}/>{file.name}<button onClick={()=>setAttachments((x)=>x.filter((_,j)=>j!==i))}><X size={11}/></button></span>)}</motion.div>}</AnimatePresence>
-    <div className="command-tools"><div><button type="button" onClick={()=>fileRef.current?.click()}><Paperclip size={15}/> Attach</button><span className="context-chip"><FolderKanban size={13}/> Workspace Context</span>{history.length>0&&<button type="button" className="history-hint" onClick={()=>navigateHistory(1)}><History size={13}/> History</button>}</div><button type="button" className="execute-button" disabled={!value.trim()} onClick={send}>{compact?'Send':'Execute'} <ArrowUp size={15}/></button></div>
+    <div className="command-tools"><div><button type="button" onClick={()=>fileRef.current?.click()}><Paperclip size={15}/> Attach</button><span className="context-chip"><FolderKanban size={13}/> Workspace Context</span>{history.length>0&&<button type="button" className="history-hint" onClick={()=>navigateHistory(1)}><History size={13}/> History</button>}</div><button type="button" className="execute-button" disabled={!value.trim() && !attachments.length} onClick={send}>{compact?'Send':'Execute'} <ArrowUp size={15}/></button></div>
     <div className="command-shortcut"><Command size={11}/> Enter to execute · Shift+Enter newline · Alt+↑ history</div>
     <input ref={fileRef} type="file" hidden multiple onChange={(e)=>add(e.target.files)}/>
   </motion.div>
