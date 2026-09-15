@@ -3,7 +3,7 @@ set -e
 
 # Default environment configuration
 export INFERENCE_ENDPOINT="${INFERENCE_ENDPOINT:-http://127.0.0.1:8000/v1}"
-export MODEL_NAME="${MODEL_NAME:-Qwen/Qwen2.5-0.5B-Instruct}"
+export MODEL_NAME="${MODEL_NAME:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"
 export ROLE="${ROLE:-analyst}"
 export RETRIEVAL="${RETRIEVAL:-hybrid}"
 export DSH_HOME="${DSH_HOME:-/app/.sentinel-dsh}"

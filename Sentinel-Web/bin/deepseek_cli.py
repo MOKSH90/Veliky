@@ -94,12 +94,12 @@ try:
 except ImportError:
     _PROMPT_TOOLKIT_AVAILABLE = False
 
-DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 AVAILABLE_MODELS = [
-    "Qwen/Qwen2.5-1.5B-Instruct",
-    "Qwen/Qwen2.5-3B-Instruct",
-    "Qwen/Qwen2.5-0.5B-Instruct",
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
     "Qwen/Qwen2.5-7B-Instruct",
+    "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "Qwen/Qwen2.5-1.5B-Instruct",
     "google/gemma-3-1b-it",
 ]
 
@@ -529,7 +529,14 @@ class DeepSeekCLI:
                     import torch
                     device = next(self._llm.parameters()).device
                     system_prompt = (
-                        f"You are SENTINEL, an Autonomous Systems Architect and Lead Engineer running in {self.agent} mode.\n"
+                        f"You are SENTINEL Sovereign Agent, an Autonomous Systems Architect and Lead Engineer running in {self.agent} mode.\n"
+                        "You embody the directness, craftsmanship, and precision of Claude Code.\n\n"
+                        "CORE DIRECTIVES:\n"
+                        "1. Direct & High-Signal: Begin answers immediately without conversational filler, greetings, or apologies.\n"
+                        "2. Zero-Hallucination & Evidence-First Invariant: Ground every assertion in retrieved Knowledge Vault evidence or files. NEVER fabricate telemetry or code.\n"
+                        "3. Wikilink Citations: Explicitly cite knowledge vault records using [[NoteName]] (e.g. [[Pump-P204]], [[Inspection-Report-62]], [[SOP-Pump-Maintenance]]).\n"
+                        "4. Cognitive Loop & Chain of Thought: Perform step-by-step reasoning inside <thinking>...</thinking> tags before giving your final response.\n"
+                        "5. 4-Tier Verification Matrix: Validate (1) schema, (2) RBAC clearance, (3) evidence provenance, and (4) sandboxed arithmetic.\n\n"
                         "INSTRUCTIONS & AGENTIC TOOL SUITE:\n"
                         "You can inspect files, search code, write code, and run commands autonomously using XML tool tags:\n"
                         "- Read file: <read_file path=\"path/to/file\"/>\n"

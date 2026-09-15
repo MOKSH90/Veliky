@@ -48,7 +48,7 @@ export function CommandInput({compact=false}:{compact?:boolean}){
       if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}
       if(e.key==='ArrowUp'&&e.altKey){e.preventDefault();navigateHistory(1)}
       if(e.key==='ArrowDown'&&e.altKey){e.preventDefault();navigateHistory(-1)}
-    }} placeholder={compact?'Ask a follow-up or give SENTINEL the next goal…':'Give SENTINEL a goal, not a conversation…'} rows={1}/>
+    }} placeholder={compact?'Ask a follow-up, test a query, or give SENTINEL the next goal…':'Ask anything, test dummy queries, or dispatch goals (e.g. "hello", "system status", "analyze P-204")…'} rows={1}/>
     <AnimatePresence>{attachments.length>0&&<motion.div className="attachment-chips" initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}>{attachments.map((file,i)=><span key={`${file.name}-${i}`}><Paperclip size={11}/>{file.name}<button onClick={()=>setAttachments((x)=>x.filter((_,j)=>j!==i))}><X size={11}/></button></span>)}</motion.div>}</AnimatePresence>
     <div className="command-tools"><div><button type="button" onClick={()=>fileRef.current?.click()}><Paperclip size={15}/> Attach</button><span className="context-chip"><FolderKanban size={13}/> Workspace Context</span>{history.length>0&&<button type="button" className="history-hint" onClick={()=>navigateHistory(1)}><History size={13}/> History</button>}</div><button type="button" className="execute-button" disabled={!value.trim() && !attachments.length} onClick={send}>{compact?'Send':'Execute'} <ArrowUp size={15}/></button></div>
     <div className="command-shortcut"><Command size={11}/> Enter to execute · Shift+Enter newline · Alt+↑ history</div>

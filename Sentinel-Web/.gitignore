@@ -23,3 +23,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+.runtime/
+server/__pycache__/

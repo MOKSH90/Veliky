@@ -1,0 +1,189 @@
+# ==============================================================================
+# SENTINEL — Sovereign Autonomous Agentic AI Workbench
+# Complete Multi-Service Container Orchestration
+# ==============================================================================
+
+services:
+  # ============================================================================
+  # 1. Local Open-Weight Model Inference Server (OpenAI-Compatible API)
+  # Serves /v1/models and /v1/chat/completions on port 8000
+  # ============================================================================
+  model-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.model
+    image: sentinel-model-server:latest
+    container_name: sentinel-model-server
+    environment:
+      - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - SERVE_HOST=0.0.0.0
+      - PORT=8000
+      - DEVICE=auto
+      - TORCH_DTYPE=auto
+    ports:
+      - "8000:8000"
+    volumes:
+      - sentinel_hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ============================================================================
+  # 2. Sovereign Gateway & Execution Sandbox Service
+  # FastMCP Bridge, Bubblewrap Sandbox, Obsidian Vault, and Policy Gate
+  # ============================================================================
+  sentinel-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    image: sentinel-gateway:latest
+    container_name: sentinel-gateway
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      - SENTINEL_GATEWAY_HOST=0.0.0.0
+      - SENTINEL_GATEWAY_PORT=8766
+      - SENTINEL_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,sentinel-gateway,sentinel-web,model-server
+      - SENTINEL_ALLOW_ALL_HOSTS=1
+      - INFERENCE_ENDPOINT=http://model-server:8000/v1
+      - SENTINEL_REASONING_ENDPOINT=http://model-server:8000/v1
+      - SENTINEL_REASONING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - SENTINEL_CODING_ENDPOINT=http://model-server:8000/v1
+      - SENTINEL_CODING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - SENTINEL_VISION_ENDPOINT=http://model-server:8000/v1
+      - SENTINEL_VISION_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - SENTINEL_RAG_DIR=/app/tflite/RAG
+      - VAULT_DIR=/app/tflite/sentinel_vault
+      - SENTINEL_STATE_DIR=/app/tflite/RAG/state
+      - SENTINEL_DATA_DIR=/app/tflite/RAG/data
+      - SENTINEL_ROLE=admin
+      - SENTINEL_HARNESS_WRITES=1
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8766:8766"
+    volumes:
+      - ./tflite/sentinel_vault:/app/tflite/sentinel_vault
+      - sentinel_state:/app/tflite/RAG/state
+      - sentinel_data:/app/tflite/RAG/data
+    depends_on:
+      model-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8766/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ============================================================================
+  # 3. Sentinel Web UI & Sovereign SOC Console
+  # High-performance Nginx serving Vite React SPA with integrated API/LLM routing
+  # ============================================================================
+  sentinel-web:
+    build:
+      context: ./Sentinel-Web
+      dockerfile: Dockerfile
+    image: sentinel-web:latest
+    container_name: sentinel-web
+    ports:
+      - "3000:80"
+      - "5173:80"
+    depends_on:
+      sentinel-gateway:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+  # ============================================================================
+  # 4. Interactive Agent Terminal CLI
+  # Usage: docker compose run --rm sentinel-cli chat
+  #        docker compose run --rm sentinel-cli investigate "Analyze Pump P-204"
+  #        docker compose run --rm sentinel-cli doctor
+  # ============================================================================
+  sentinel-cli:
+    image: sentinel-gateway:latest
+    container_name: sentinel-cli
+    stdin_open: true
+    tty: true
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      - INFERENCE_ENDPOINT=http://model-server:8000/v1
+      - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - SENTINEL_ROLE=admin
+      - SENTINEL_RAG_DIR=/app/tflite/RAG
+      - VAULT_DIR=/app/tflite/sentinel_vault
+    volumes:
+      - ./tflite/sentinel_vault:/app/tflite/sentinel_vault
+      - sentinel_state:/app/tflite/RAG/state
+      - sentinel_data:/app/tflite/RAG/data
+      - sentinel_hf_cache:/root/.cache/huggingface
+    depends_on:
+      model-server:
+        condition: service_healthy
+    command: ["chat"]
+    profiles:
+      - cli
+    networks:
+      - sentinel-net
+
+  # ============================================================================
+  # 5. Autonomous Telemetry Watcher Daemon (Optional)
+  # Launch with: docker compose --profile watcher up -d
+  # ============================================================================
+  watcher:
+    image: sentinel-gateway:latest
+    container_name: sentinel-watcher
+    environment:
+      - INFERENCE_ENDPOINT=http://model-server:8000/v1
+      - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - SENTINEL_ROLE=admin
+      - SENTINEL_RAG_DIR=/app/tflite/RAG
+      - VAULT_DIR=/app/tflite/sentinel_vault
+    volumes:
+      - ./tflite/sentinel_vault:/app/tflite/sentinel_vault
+      - sentinel_state:/app/tflite/RAG/state
+      - sentinel_data:/app/tflite/RAG/data
+    depends_on:
+      model-server:
+        condition: service_healthy
+    command: ["python3", "/app/tflite/RAG/sentinel_watcher.py"]
+    profiles:
+      - watcher
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+
+volumes:
+  # Persistent cache for Hugging Face model weights
+  sentinel_hf_cache:
+    name: sentinel_hf_cache
+  # Persistent runtime state
+  sentinel_state:
+    name: sentinel_state
+  # Persistent data store
+  sentinel_data:
+    name: sentinel_data
+
+networks:
+  sentinel-net:
+    driver: bridge
+    name: sentinel-net

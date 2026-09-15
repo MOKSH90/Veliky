@@ -1,0 +1,17 @@
+# ==============================================================================
+# SENTINEL — NVIDIA GPU Acceleration Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+# ==============================================================================
+
+services:
+  model-server:
+    environment:
+      - DEVICE=cuda
+      - TORCH_DTYPE=bfloat16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

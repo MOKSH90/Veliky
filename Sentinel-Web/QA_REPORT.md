@@ -1,75 +1,40 @@
-# EDITH Frontend v0.4 — QA Report
+# Sentinel frontend verification
 
-## Completion status
+Verified 14 September 2026 against the rebuilt workbench.
 
-- [x] CSS design system
-- [x] Application shell layout
-- [x] Mobius strip 3D visualization
-- [x] 3D workspace graph visualization
-- [x] Typography
-- [x] Alignment and spacing
-- [x] Duplicate navigation removed
-- [x] UI components
-- [x] Responsive layout, including compact phone navigation
-- [x] Orange/amber restricted to approval and warning states
-- [x] Final source and production-build QA
+## Passed checks
 
-## Scope of this revision
+- `npm run build`: TypeScript compilation and Vite production bundle pass. Initial app JavaScript: 459.76 kB, 140.04 kB gzip; CSS: 32.50 kB, 6.81 kB gzip.
+- `npm run typecheck`: passes.
+- `npm run format:check`: passes for all active frontend modules and maintained contracts.
+- Strict premium UI audit: zero errors, zero warnings, no unresolved canonical owners. Evidence: `premium-audit.json`.
+- DESIGN.md validator: zero errors. Seven documentation-only warnings report prose-defined token consumers as unreferenced; these values are consumed by the canonical stylesheet and shared components.
+- Dependency installation audit: zero vulnerabilities reported.
+- `npm run qa:browser`: all 10 workflow groups pass in system Chromium.
+- axe WCAG 2 A/AA and 2.1 AA checks: zero violations on all eight default desktop routes and the open global search dialog.
+- No browser JavaScript exceptions and no external application requests observed by the workflow suite.
 
-This pass addresses the navigation-return problem and the visual-quality complaints from v0.3.
+## Browser coverage
 
-### Navigation
+1. All eight routes: overview, AI workspace, knowledge, assets, approvals, deliverables, activity, settings.
+2. Goal validation, persisted draft, task creation, browser back/forward.
+3. Draft edit, attached source, reload, deletion cancellation and confirmation.
+4. Sample execution cancellation and completion; approval preview, confirmation recovery, decision, receipt, and actual downloaded file.
+5. Unsupported-file error, local Markdown import, source preview, removal cancellation/confirmation, no-results, filter reset and pagination.
+6. Global search including assets; repeated Tab focus cycling inside a modal; Escape.
+7. Settings validation, saved preferences, reload and unsaved navigation protection.
+8. Every route at 390 × 844: no document horizontal overflow, screenshots and mobile menu navigation.
+9. Offline indicator and unknown-route recovery.
+10. Overview reflow at 320px and 720px. The latter approximates the layout width of a 1440px viewport at 200% zoom; actual browser zoom and a cross-device matrix were not tested.
 
-- Consolidated the duplicated EDITH return controls into the top-left brand button.
-- Kept the sidebar focused on the four workspace tools and converted core status into a non-navigation status surface.
-- Added `Esc` as a keyboard shortcut to return to the EDITH agent from any of the four tool views.
-- Workspace remains the only view that renders the project file explorer/editor.
+Screenshots, downloaded sample note, and detailed machine results: `/tmp/sentinel-qa/`.
 
-### Prompt workflow
+## Visual review
 
-- Kept the command composer available after the first goal as a visible follow-up command surface.
-- Follow-up prompts can start a new controlled run from planning, approval, success, or failure states.
-- Preserved attachments and command-history navigation for subsequent prompts.
+Reviewed the rendered desktop and mobile overview: single primary task composer; clear task and approval hierarchy; consistent semantic badges; natural page scroll; no always-open intelligence panel or decorative telemetry. Shared tokens apply across the sibling pages.
 
-### Visual system
+## Boundaries
 
-- Reworked the shell into floating matte/frosted surfaces with larger radii, softer inset highlights, restrained translucency, fewer visible border strokes, and quieter shadows.
-- Reworked top bar, sidebar, project bar, command input, workspace editor, graph controls, memory panels, activity panels, project switcher, and profile surface to use the same material system.
-- Red is now used as a controlled state/signal accent instead of the dominant fill color.
+This is a complete frontend demonstration, not a live AI deployment. Authentication/authorization, OCR, on-premise inference, independent sandbox verification, server-side audit, enterprise output generation and measured egress controls require backend integration. Local images have a browser preview with decode-error recovery, but automated file workflow coverage currently uses Markdown. No Safari, Firefox, real-device or screen-reader audit was performed. Automated accessibility checks do not establish complete WCAG conformance.
 
-### 3D Möbius
-
-- Rebuilt the strip geometry with an explicitly closed Möbius seam rather than a visually open/reversed terminal edge.
-- Replaced the previous heavily red/shader-style surface with a cleaner pearlescent metal/glass material.
-- Added one restrained red state-reactive signal filament across the strip.
-- Added animated signal packets, soft orbit geometry, contact shadows, state-based motion speeds, and pointer/camera parallax.
-- Success/approval/failure states change the signal treatment without recoloring the entire UI.
-- Added adaptive canvas performance, lazy loading, accessible scene labels, and reduced-motion support.
-
-### 3D graph
-
-- Reduced visual clutter by capping the spatial render to a cleaner working set.
-- Rebuilt nodes as translucent glass shells with internal cores.
-- Added a larger EDITH/goal core, softer active halos, curved low-noise links, and animated packets on active relationships.
-- Retained orbit, zoom, node selection, camera focus, search, working-set filtering, relationship filtering, and connection inspection.
-- Removed the gamer/HUD-style grid treatment from the graph stage.
-- Made the motion control stop node, edge, backdrop, and scene movement consistently and respect reduced-motion preferences by default.
-
-## Source QA
-
-- TS/TSX syntax parse: **26/26 files passed**.
-- TS/TSX transpile check (excluding `vite-env.d.ts` declaration file): **25/25 source files passed**.
-- Relative import resolution check: **0 missing relative imports**.
-- `package.json`: valid JSON.
-- CSS structural brace check: **848 opening / 848 closing braces**.
-
-## Build verification
-
-- `npm run typecheck`: passed.
-- `npm run build`: passed with Vite 7.3.6.
-- 2,561 modules transformed successfully.
-- The Mobius and graph scenes are emitted as lazy-loaded chunks, keeping the initial application bundle independent of scene code.
-
-## Backend boundary
-
-This remains a frontend prototype. Local workspace inspection is client-side and the agent execution flow is simulated. Real terminal execution, file mutation, LLM planning, policy enforcement, server-side Google credential verification, and persistent backend memory still require the EDITH backend/tool layer.
+The old source modules are retained as migration reference but are excluded from the active entry-point import graph. The current premium audit targets `src/workbench/`, the active frontend.

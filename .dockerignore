@@ -1,0 +1,37 @@
+# Git & IDE
+.git
+.gitignore
+.idea
+.vscode
+.pytest_cache
+*.pyc
+__pycache__
+*.log
+
+# Node & Frontend
+node_modules
+Sentinel-Web/node_modules
+Sentinel-Web/dist
+Sentinel-Web/.runtime
+*.tsbuildinfo
+
+# Python Virtual Environments
+.venv
+tflite/.venv
+venv
+ENV
+
+# Android App
+Sentinel-App/.gradle
+Sentinel-App/build
+Sentinel-App/app/build
+Sentinel-App/.idea
+
+# DeepSeek Harness monorepo local builds
+tflite/tools/deepseek-harness/node_modules
+tflite/tools/deepseek-harness/**/node_modules
+
+# Huggingface and caches
+.cache
+~*
+*.swp

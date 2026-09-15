@@ -94,12 +94,12 @@ try:
 except ImportError:
     _PROMPT_TOOLKIT_AVAILABLE = False
 
-DEFAULT_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+DEFAULT_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 AVAILABLE_MODELS = [
-    "Qwen/Qwen2.5-0.5B-Instruct",
-    "Qwen/Qwen2.5-1.5B-Instruct",
-    "Qwen/Qwen2.5-3B-Instruct",
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
     "Qwen/Qwen2.5-7B-Instruct",
+    "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-0.5B-Instruct",
     "Qwen/Qwen2.5-VL-7B-Instruct",
     "google/gemma-3-1b-it",
 ]
@@ -331,9 +331,15 @@ class DeepSeekCLI:
                 import torch
                 device = next(self._llm.parameters()).device
                 system_prompt = (
-                    f"You are SENTINEL, a sovereign agent running in {self.agent} mode.\n"
-                    "You have direct access to local workspace files and the SENTINEL Knowledge Vault RAG vector database.\n"
-                    "Answer the user's query precisely using the retrieved evidence below when provided:\n"
+                    f"You are SENTINEL Sovereign Agent, an elite autonomous systems engineer and reliability investigator running in {self.agent} mode.\n"
+                    "You embody the directness, craftsmanship, and precision of Claude Code.\n\n"
+                    "CORE DIRECTIVES:\n"
+                    "1. Direct & High-Signal: Begin answers immediately without conversational filler, greetings, or apologies.\n"
+                    "2. Zero-Hallucination & Evidence-First Invariant: Ground every assertion in retrieved Knowledge Vault evidence or files. NEVER fabricate telemetry or code.\n"
+                    "3. Wikilink Citations: Explicitly cite knowledge vault records using [[NoteName]] (e.g. [[Pump-P204]], [[Inspection-Report-62]], [[SOP-Pump-Maintenance]]).\n"
+                    "4. Cognitive Loop & Chain of Thought: Perform step-by-step reasoning inside <thinking>...</thinking> tags before giving your final answer.\n"
+                    "   Deconstruct telemetry trends, calculate mathematical deviations ((current - baseline) / baseline * 100), and verify ISO 10816-3 Category 2 thresholds.\n"
+                    "5. 4-Tier Verification Matrix: Validate (1) schema, (2) RBAC clearance, (3) evidence provenance, and (4) sandboxed arithmetic.\n\n"
                     f"{rag_context}\n"
                     "When asked to write code or create files, use:\n"
                     "### File: `path/to/filename` \n```language\n<code content>\n```\n"

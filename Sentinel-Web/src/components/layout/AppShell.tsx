@@ -1,22 +1,39 @@
-import type { ReactNode } from 'react'
-import { TopBar } from './TopBar'
-import { Sidebar } from './Sidebar'
-import { ProjectBar } from './ProjectBar'
+import { useEffect, type ReactNode } from 'react'
+import { GlobalTopBar } from './GlobalTopBar'
+import { SidebarNav } from './SidebarNav'
+import { RightIntelligencePanel } from './RightIntelligencePanel'
 import { ProfilePanel } from '../profile/ProfilePanel'
 import { HistoryPanel } from '../history/HistoryPanel'
+import { useSentinelStore } from '../../store/useSentinelSOCStore'
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const theme = useSentinelStore((s) => s.theme)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    // Prevent and recover from any accidental horizontal scroll drift
+    const resetScroll = () => {
+      if (window.scrollX !== 0) window.scrollTo(0, window.scrollY)
+      if (document.documentElement.scrollLeft !== 0) document.documentElement.scrollLeft = 0
+      if (document.body.scrollLeft !== 0) document.body.scrollLeft = 0
+    }
+    resetScroll()
+    window.addEventListener('resize', resetScroll)
+    return () => window.removeEventListener('resize', resetScroll)
+  }, [])
+
   return (
-    <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      <TopBar />
-      <div className="body-shell" style={{ flex: '1 1 0%', minHeight: 0, height: '100%', overflow: 'hidden' }}>
-        <Sidebar />
-        <div className="workspace-wrapper" style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, overflow: 'hidden' }}>
-          <main className="main-workspace">
-            {children}
-          </main>
-          <ProjectBar />
-        </div>
+    <div className="sentinel-app-shell" data-theme={theme}>
+      <GlobalTopBar />
+      <div className="sentinel-main-container">
+        <SidebarNav />
+        <main className="sentinel-workspace">
+          {children}
+        </main>
+        <RightIntelligencePanel />
       </div>
       <HistoryPanel />
       <ProfilePanel />

@@ -64,7 +64,7 @@ RUN chmod +x /app/reinery /app/docker-entrypoint.sh /app/RAG/harness/dsh-source
 
 # 7. Runtime environment variables
 ENV INFERENCE_ENDPOINT=http://127.0.0.1:8000/v1 \
-    MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct \
+    MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
     ROLE=analyst \
     RETRIEVAL=hybrid \
     DSH_HOME=/app/.sentinel-dsh \

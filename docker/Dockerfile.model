@@ -1,0 +1,45 @@
+# ==============================================================================
+# SENTINEL Local Open-Weight Inference Engine
+# High-Throughput OpenAI-Compatible Server for DeepSeek-R1 & Qwen Models
+# Supports CPU and NVIDIA CUDA Acceleration
+# ==============================================================================
+
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    git \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install PyTorch, Hugging Face Transformers, Accelerate, Starlette, Uvicorn
+RUN pip install --no-cache-dir \
+    torch \
+    transformers \
+    accelerate \
+    starlette \
+    uvicorn \
+    huggingface_hub
+
+WORKDIR /app
+COPY tflite/RAG/sentinel_llm_server.py /app/tflite/RAG/sentinel_llm_server.py
+
+ENV MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
+    SERVE_HOST=0.0.0.0 \
+    PORT=8000 \
+    DEVICE=auto \
+    TORCH_DTYPE=auto \
+    PYTHONUNBUFFERED=1
+
+VOLUME ["/root/.cache/huggingface"]
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=30 --start-period=20s \
+    CMD curl -sf http://127.0.0.1:8000/health || exit 1
+
+CMD ["python3", "/app/tflite/RAG/sentinel_llm_server.py", "--host", "0.0.0.0", "--port", "8000"]

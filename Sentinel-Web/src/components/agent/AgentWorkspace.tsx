@@ -1,24 +1,194 @@
-import { RotateCcw, TerminalSquare, ArrowRight, Bot, Sparkles } from 'lucide-react'
+import { useRef, useEffect } from 'react'
+import { RotateCcw, ArrowRight, Bot, Sparkles, User, BrainCircuit, Loader2, Shield } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CommandInput } from './CommandInput'
 import { MarkdownOutputCanvas } from './MarkdownOutputCanvas'
-import { useEdithStore } from '../../store/useEdithStore'
+import { useSentinelStore } from '../../store/useSentinelSOCStore'
 
-const quickGoals = [
-  'Analyze the workspace codebase and explain main functions.',
-  'Write a Python script for quicksort with clear comments.',
-  'Explain async/await syntax in TypeScript with an example.',
+interface QuickScenario {
+  id: string
+  tag: string
+  tagColor: string
+  category: 'inquiry' | 'industrial' | 'safety' | 'code'
+  title: string
+  prompt: string
+  targetAsset: string
+  scope: string
+}
+
+interface QuickQueryPill {
+  id: string
+  label: string
+  prompt: string
+  color: string
+}
+
+const QUICK_QUERY_PILLS: QuickQueryPill[] = [
+  {
+    id: 'hello',
+    label: '👋 Hello Sentinel',
+    prompt: 'Hello Sentinel, provide an operational briefing, active persona directives, and available refinery diagnostics.',
+    color: '#3b82f6',
+  },
+  {
+    id: 'status',
+    label: '⚡ Cluster Health & Diagnostics',
+    prompt: 'Run a complete system diagnostic check on cluster nodes, memory usage, air-gap status, and connected telemetry streams.',
+    color: '#10b981',
+  },
+  {
+    id: 'iso',
+    label: '📊 ISO 10816-3 Thresholds',
+    prompt: 'Explain ISO 10816-3 Category 2 vibration severity zones, RMS velocity limits, and alert thresholds.',
+    color: '#8b5cf6',
+  },
+  {
+    id: 'rbac',
+    label: '🛡️ RBAC & Airgap Security',
+    prompt: 'What is my current RBAC clearance level, and how does Sentinel enforce air-gapped cryptographic integrity?',
+    color: '#06b6d4',
+  },
+  {
+    id: 'pump',
+    label: '🔍 Slurry Pump P-204 (+92%)',
+    prompt: 'Analyze centrifugal pump P-204 vibration condition and determine whether attention is required. Use maintenance history, inspection report, and SOP. Calculate deviation using Python and produce evidence-backed report.',
+    color: '#ef4444',
+  },
+  {
+    id: 'cascade',
+    label: '🔀 Downstream C-104 Risk',
+    prompt: 'Explain downstream cascade impact of P-204 vibration exceedance on Wet Gas Compressor C-104 and Surge Drum TK-101. Provide mitigation runbook.',
+    color: '#f59e0b',
+  },
+  {
+    id: 'loto',
+    label: '🛑 Emergency LOTO SOP',
+    prompt: 'Provide step-by-step Standard Operating Procedure for emergency isolation and Lockout/Tagout (LOTO) of Pump P-204.',
+    color: '#ec4899',
+  },
+  {
+    id: 'fft',
+    label: '🐍 Python FFT Vibration Script',
+    prompt: 'Generate a production Python script to compute FFT spectral vibration analysis on time-series accelerometer data from Pump P-204.',
+    color: '#14b8a6',
+  },
+  {
+    id: 'audit',
+    label: '🔐 Audit CAS SHA-256 Ledger',
+    prompt: 'Perform cryptographic audit of the local CAS SHA-256 ledger records and verify tamper-evident chain of custody for recent incident actions.',
+    color: '#6366f1',
+  },
+]
+
+const INDUSTRIAL_SCENARIOS: QuickScenario[] = [
+  {
+    id: 'sec26',
+    tag: 'SIH Killer Demo (Sec. 26)',
+    tagColor: '#10b981',
+    category: 'industrial',
+    title: 'Slurry Pump P-204 Vibration Exceedance (+92.86%)',
+    prompt: 'Analyze centrifugal pump P-204 vibration condition and determine whether attention is required. Use maintenance history, inspection report, and SOP. Calculate deviation using Python and produce evidence-backed report.',
+    targetAsset: 'P-204',
+    scope: 'ISO 10816-3 Category 2 · Inspection #62 · MR #184'
+  },
+  {
+    id: 'pid',
+    tag: 'P&ID Schematic Interlock',
+    tagColor: '#06b6d4',
+    category: 'industrial',
+    title: 'Unit 2 P&ID Drawing & Valve V-19 Interlock Check',
+    prompt: 'Analyze Unit 2 P&ID engineering schematic. Identify isolation valve V-19 and verify mechanical seal Plan 53A interlock status for pump P-204.',
+    targetAsset: 'P-204 / V-19',
+    scope: 'P&ID Unit 2 Schematic · Seal Plan 53A Spec'
+  },
+  {
+    id: 'cascade',
+    tag: 'MITRE ICS T0888 Analysis',
+    tagColor: '#f59e0b',
+    category: 'industrial',
+    title: 'Downstream Surge Risk on Wet Gas Compressor C-104',
+    prompt: 'Explain downstream cascade impact of P-204 vibration exceedance on Wet Gas Compressor C-104 and Surge Drum TK-101. Provide mitigation runbook.',
+    targetAsset: 'C-104',
+    scope: 'Process Flow Topology · Downstream Pressure Hazards'
+  },
+  {
+    id: 'contradiction',
+    tag: 'Forensic Evidence Audit',
+    tagColor: '#ef4444',
+    category: 'industrial',
+    title: 'Cross-Document Contradiction: Report #62 vs MR #184',
+    prompt: 'Cross-reference Inspection Report #62 with Maintenance Report #184. Identify contradictions regarding bearing replacement and verify Mobil Polyrex EM grease replenishment timestamp.',
+    targetAsset: 'P-204 (NDE 6312)',
+    scope: 'Inspection-Report-62 · Maintenance-Report-184'
+  },
+  {
+    id: 'loto_scen',
+    tag: 'Safety Runbook Protocol',
+    tagColor: '#ec4899',
+    category: 'safety',
+    title: 'Emergency Isolation & LOTO Procedure for P-204',
+    prompt: 'Provide step-by-step Standard Operating Procedure for emergency isolation and Lockout/Tagout (LOTO) of Slurry Pump P-204 per plant safety standard.',
+    targetAsset: 'P-204 (LOTO)',
+    scope: 'SOP-Emergency-Isolation Rev 3.4 · Substation 4-B'
+  },
+  {
+    id: 'fft_scen',
+    tag: 'Deterministic DSP Pipeline',
+    tagColor: '#14b8a6',
+    category: 'code',
+    title: 'Automated Python FFT Vibration Spectral Analyzer',
+    prompt: 'Generate a production Python script to compute FFT spectral vibration analysis on time-series accelerometer data from Pump P-204.',
+    targetAsset: 'P-204 (DSP)',
+    scope: 'NumPy / SciPy · 1X/2X Harmonics · ISO Category 2'
+  },
+  {
+    id: 'cluster_scen',
+    tag: 'Air-Gapped Sovereign Health',
+    tagColor: '#3b82f6',
+    category: 'inquiry',
+    title: 'Cluster Health, Nodes & Telemetry Stream Diagnostics',
+    prompt: 'Run a complete system diagnostic check on cluster nodes, memory usage, air-gap status, and connected telemetry streams.',
+    targetAsset: 'Cluster Node',
+    scope: 'Gateway 8766 · Model 8000 · Web 3000 · CAS Ledger'
+  },
+  {
+    id: 'cas_scen',
+    tag: 'Zero-Trust Cryptographic Audit',
+    tagColor: '#6366f1',
+    category: 'safety',
+    title: 'CAS SHA-256 Tamper-Evident Ledger Integrity Audit',
+    prompt: 'Perform cryptographic audit of the local CAS SHA-256 ledger records and verify tamper-evident chain of custody for recent incident actions.',
+    targetAsset: 'CAS Ledger',
+    scope: 'SHA-256 Merkle Verification · ECDSA Operator Seals'
+  }
 ]
 
 export function AgentWorkspace() {
-  const state = useEdithStore((s) => s.agentState)
-  const goal = useEdithStore((s) => s.currentGoal)
-  const reset = useEdithStore((s) => s.resetAgent)
-  const logs = useEdithStore((s) => s.executionLog)
-  const submit = useEdithStore((s) => s.submitGoal)
-  const activeAgent = useEdithStore((s) => s.activeAgent)
-  const activeModel = useEdithStore((s) => s.activeModel)
-  const idle = state === 'idle'
+  const state = useSentinelStore((s) => s.agentState)
+  const clearChat = useSentinelStore((s) => s.clearChatMessages)
+  const submit = useSentinelStore((s) => s.submitGoal)
+  const activeAgent = useSentinelStore((s) => s.activeAgent)
+  const activeModel = useSentinelStore((s) => s.activeModel)
+  const chatMessages = useSentinelStore((s) => s.chatMessages)
+  const isAnalyzing = useSentinelStore((s) => s.isAnalyzing)
+  const reasoningLedger = useSentinelStore((s) => s.reasoningLedger)
+  const authUser = useSentinelStore((s) => s.authUser)
+  const activeStep = reasoningLedger.find((s) => s.status === 'active')
+
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (chatMessages.length > 0 && chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTo({
+        top: chatScrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      })
+    } else if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTop = 0
+    }
+  }, [chatMessages.length, isAnalyzing])
+
+  const idle = chatMessages.length === 0
 
   return (
     <div
@@ -29,7 +199,7 @@ export function AgentWorkspace() {
         flexDirection: 'column',
         height: '100%',
         width: '100%',
-        background: 'var(--surface-bg, #0d0d11)',
+        background: 'var(--soc-bg-base)',
         color: '#e2e8f0',
         overflow: 'hidden',
         position: 'relative',
@@ -41,23 +211,39 @@ export function AgentWorkspace() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 24px',
-          background: 'rgba(15, 23, 42, 0.75)',
+          padding: '12px 28px',
+          background: 'var(--soc-bg-surface)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--soc-border-subtle)',
           zIndex: 10,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
+          <div style={{ padding: '6px', borderRadius: '6px', background: 'var(--soc-primary-subtle)', color: 'var(--soc-primary)' }}>
             <Bot size={18} />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
-              SENTINEL Agent ({activeAgent.toUpperCase()})
-            </h2>
-            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-              Model: {activeModel} | Status: <strong style={{ color: state === 'executing' ? '#38bdf8' : '#34d399' }}>{state.toUpperCase()}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', color: 'var(--soc-text-high)' }}>
+                SOVEREIGN INQUIRY & AGENT CONSOLE
+              </h2>
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  fontFamily: 'monospace',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: 'var(--soc-emerald)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                }}
+              >
+                SIH PS #26117
+              </span>
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--soc-text-muted)' }}>
+              Engine: <strong style={{ color: 'var(--soc-text-high)' }}>{activeModel.split('/')[1] || activeModel}</strong> | Clearance: <strong style={{ color: 'var(--soc-primary)' }}>{authUser?.clearance || 'CONFIDENTIAL'}</strong> | Egress: <strong style={{ color: 'var(--soc-emerald)' }}>0.00 KB/s (Air-Gapped)</strong>
             </span>
           </div>
         </div>
@@ -65,37 +251,41 @@ export function AgentWorkspace() {
         {!idle && (
           <button
             type="button"
-            onClick={reset}
+            onClick={clearChat}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: '#cbd5e1',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              padding: '5px 12px',
+              borderRadius: '5px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 600,
+              background: 'var(--soc-bg-elevated)',
+              color: 'var(--soc-text-medium)',
+              border: '1px solid var(--soc-border-subtle)',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
-            <RotateCcw size={14} />
-            <span>New Chat</span>
+            <RotateCcw size={13} />
+            <span>New Inquiry</span>
           </button>
         )}
       </div>
 
       {/* Main Conversation Canvas */}
       <div
+        ref={chatScrollContainerRef}
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '24px',
+          overflowX: 'hidden',
+          padding: '24px 28px 40px',
           display: 'flex',
           flexDirection: 'column',
           gap: '20px',
-          maxWidth: '960px',
+          maxWidth: '1040px',
           width: '100%',
           margin: '0 auto',
         }}
@@ -111,75 +301,152 @@ export function AgentWorkspace() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '60vh',
+                justifyContent: 'flex-start',
                 textAlign: 'center',
-                gap: '24px',
+                gap: '20px',
+                paddingTop: '8px',
+                paddingBottom: '24px',
+                width: '100%',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                 <div
                   style={{
-                    padding: '16px',
-                    borderRadius: '20px',
-                    background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2))',
-                    border: '1px solid rgba(99,102,241,0.3)',
-                    boxShadow: '0 0 30px rgba(99,102,241,0.15)',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    background: 'var(--soc-primary-subtle)',
+                    border: '1px solid var(--soc-primary)',
+                    boxShadow: '0 0 24px var(--soc-primary-glow)',
                   }}
                 >
-                  <Sparkles size={32} style={{ color: '#a78bfa' }} />
+                  <Sparkles size={28} style={{ color: 'var(--soc-primary)' }} />
                 </div>
-                <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
-                  What do you want SENTINEL to accomplish?
+                <h1 style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--soc-text-high)', margin: '4px 0 0 0', letterSpacing: '0.02em' }}>
+                  Sovereign Industrial Investigation Engine
                 </h1>
-                <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '480px', margin: 0 }}>
-                  Ask any question, request code generation, or analyze your project workspace files.
+                <p style={{ fontSize: '13px', color: 'var(--soc-text-muted)', maxWidth: '660px', margin: 0, lineHeight: 1.6 }}>
+                  Autonomous multimodal reasoning over P&ID engineering schematics, inspection PDFs, maintenance spreadsheets, and ISO 10816-3 standards with 0-cloud egress.
                 </p>
               </div>
 
-              <div style={{ width: '100%', maxWidth: '680px' }}>
+              {/* Investigation Scope Badges */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <span className="soc-badge badge-dim" style={{ fontSize: '10px' }}>
+                  Target: <strong>Centrifugal Slurry Pump P-204</strong>
+                </span>
+                <span className="soc-badge badge-dim" style={{ fontSize: '10px' }}>
+                  Standard: <strong>ISO 10816-3 Category 2</strong>
+                </span>
+                <span className="soc-badge badge-sovereign" style={{ fontSize: '10px' }}>
+                  Execution: <strong>Deterministic Python Sandbox (SymPy)</strong>
+                </span>
+                <span className="soc-badge badge-normal" style={{ fontSize: '10px' }}>
+                  Clearance: <strong>{authUser?.role?.toUpperCase() || 'OPERATOR'}</strong>
+                </span>
+              </div>
+
+              {/* Quick Query Pills / Dummy Queries */}
+              <div style={{ width: '100%', maxWidth: '920px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--soc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    ⚡ Instant Quick Inquiries & Dummy Queries
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--soc-text-dim)' }}>1-Click instant test</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                  {QUICK_QUERY_PILLS.map((pill) => (
+                    <button
+                      key={pill.id}
+                      type="button"
+                      onClick={() => submit(pill.prompt)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 600,
+                        background: 'var(--soc-bg-surface)',
+                        color: 'var(--soc-text-high)',
+                        border: `1px solid ${pill.color}40`,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = pill.color
+                        e.currentTarget.style.boxShadow = `0 0 12px ${pill.color}30`
+                        e.currentTarget.style.transform = 'translateY(-1px)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = `${pill.color}40`
+                        e.currentTarget.style.boxShadow = 'none'
+                        e.currentTarget.style.transform = 'none'
+                      }}
+                    >
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: pill.color }} />
+                      <span>{pill.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* The Command Input Bar */}
+              <div style={{ width: '100%', maxWidth: '920px' }}>
                 <CommandInput />
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  width: '100%',
-                  maxWidth: '680px',
-                }}
-              >
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Suggested Prompts
-                </span>
-                {quickGoals.map((q, i) => (
-                  <motion.button
-                    key={q}
-                    type="button"
-                    onClick={() => submit(q)}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 * i }}
+              {/* 4 Dedicated SIH #26117 Scenario Inquiry Cards */}
+              <div style={{ width: '100%', maxWidth: '920px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      borderRadius: '10px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
-                      color: '#e2e8f0',
-                      fontSize: '13px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--soc-text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
                     }}
                   >
-                    <span>{q}</span>
-                    <ArrowRight size={14} style={{ color: '#64748b' }} />
-                  </motion.button>
-                ))}
+                    1-Click Verified Demonstration Scenarios (SIH #26117)
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--soc-text-dim)' }}>Click to dispatch autonomous investigation</span>
+                </div>
+
+                <div className="inquiry-scenario-grid">
+                  {INDUSTRIAL_SCENARIOS.map((scenario) => (
+                    <div
+                      key={scenario.id}
+                      className="inquiry-scenario-card"
+                      onClick={() => submit(scenario.prompt)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span 
+                          className="inquiry-card-tag" 
+                          style={{ color: scenario.tagColor }}
+                        >
+                          ● {scenario.tag}
+                        </span>
+                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--soc-text-dim)' }}>
+                          [{scenario.targetAsset}]
+                        </span>
+                      </div>
+                      <h4 className="inquiry-card-title">{scenario.title}</h4>
+                      <p className="inquiry-card-desc">{scenario.prompt.slice(0, 110)}...</p>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', borderTop: '1px solid var(--soc-border-subtle)', paddingTop: '6px' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--soc-text-dim)', fontFamily: 'var(--font-mono)' }}>
+                          {scenario.scope}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--soc-primary)', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                          <span>Run</span>
+                          <ArrowRight size={11} />
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </motion.div>
           ) : (
@@ -189,34 +456,62 @@ export function AgentWorkspace() {
               animate={{ opacity: 1 }}
               style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}
             >
-              {/* Render simple text model delivery */}
-              {logs.filter(log => log.label.includes('User Prompt') || log.label.includes('SENTINEL') || log.label.includes('Explanation') || log.label.includes('Assistant')).map((log) => {
-                const isUserPrompt = log.label.includes('User Prompt')
+              {chatMessages.map((msg) => {
+                const isUser = msg.role === 'user'
 
-                if (isUserPrompt) {
+                if (isUser) {
                   return (
                     <motion.div
-                      key={log.id}
+                      key={msg.id}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       style={{
                         alignSelf: 'flex-end',
                         maxWidth: '85%',
-                        background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.6), rgba(30, 64, 175, 0.4))',
-                        border: '1px solid rgba(59, 130, 246, 0.35)',
+                        background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.85), rgba(37, 99, 235, 0.75))',
+                        border: '1px solid rgba(59, 130, 246, 0.45)',
                         borderRadius: '16px 16px 4px 16px',
                         padding: '16px 20px',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                        boxShadow: 'var(--soc-shadow-md)',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          You
-                        </span>
-                        {log.time && <time style={{ fontSize: '11px', color: '#94a3b8' }}>{log.time}</time>}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '6px',
+                          gap: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <User size={13} style={{ color: '#93c5fd' }} />
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: '#bfdbfe',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            {authUser?.name || 'Operator'} ({authUser?.role.toUpperCase()})
+                          </span>
+                        </div>
+                        {msg.timestamp && (
+                          <time style={{ fontSize: '11px', color: '#93c5fd' }}>{msg.timestamp}</time>
+                        )}
                       </div>
-                      <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6', color: '#f8fafc', whiteSpace: 'pre-wrap' }}>
-                        {log.detail}
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: '14px',
+                          lineHeight: '1.6',
+                          color: '#ffffff',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {msg.content}
                       </p>
                     </motion.div>
                   )
@@ -224,33 +519,148 @@ export function AgentWorkspace() {
 
                 return (
                   <motion.div
-                    key={log.id}
+                    key={msg.id}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     style={{ width: '100%' }}
                   >
-                    <MarkdownOutputCanvas label="SENTINEL AI" detail={log.detail} time={log.time} file={log.file} />
+                    <MarkdownOutputCanvas
+                      label={`SENTINEL AI (${activeAgent.toUpperCase()})`}
+                      detail={msg.content}
+                      time={msg.timestamp}
+                      reasoning={msg.reasoning}
+                      verification={msg.verificationStatus}
+                      createdFiles={msg.createdFiles}
+                      citedSources={msg.citedSources}
+                    />
                   </motion.div>
                 )
               })}
+
+              {/* Active Thinking State Indicator */}
+              {isAnalyzing && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    padding: '16px 20px',
+                    borderRadius: '12px',
+                    background: 'var(--soc-bg-surface)',
+                    border: '1px solid var(--soc-primary)',
+                    boxShadow: 'var(--soc-shadow-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div
+                      style={{
+                        padding: '8px',
+                        borderRadius: '8px',
+                        background: 'var(--soc-primary-subtle)',
+                        color: 'var(--soc-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Loader2 size={16} className="animate-spin" />
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          color: 'var(--soc-text-high)',
+                        }}
+                      >
+                        <BrainCircuit size={14} style={{ color: 'var(--soc-primary)' }} />
+                        <span>REASONING & SYNTHESIZING PROOF...</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--soc-text-muted)' }}>
+                        {activeStep ? activeStep.label : 'Executing cognitive loop across Knowledge Vault...'}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontFamily: 'monospace',
+                      fontWeight: 600,
+                      color: 'var(--soc-primary)',
+                      background: 'var(--soc-primary-subtle)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--soc-primary)',
+                    }}
+                  >
+                    Sovereign 8-Stage Cognitive Loop
+                  </span>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Bottom Command Input Bar for ongoing chat */}
+      {/* Bottom Command Input Bar for ongoing conversation */}
       {!idle && (
         <div
           style={{
-            padding: '14px 24px',
-            background: 'rgba(15, 23, 42, 0.85)',
-            backdropFilter: 'blur(12px)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            maxWidth: '960px',
+            padding: '10px 24px 14px',
+            background: 'var(--soc-bg-surface)',
+            borderTop: '1px solid var(--soc-border-subtle)',
+            maxWidth: '1040px',
             width: '100%',
             margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
           }}
         >
+          {/* Quick Queries Suggestion Strip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
+            <span style={{ fontSize: '10px', color: 'var(--soc-text-dim)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', fontWeight: 600, textTransform: 'uppercase' }}>
+              💡 Quick Queries:
+            </span>
+            {QUICK_QUERY_PILLS.map((pill) => (
+              <button
+                key={pill.id}
+                type="button"
+                onClick={() => submit(pill.prompt)}
+                style={{
+                  whiteSpace: 'nowrap',
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 500,
+                  background: 'var(--soc-bg-elevated)',
+                  color: 'var(--soc-text-medium)',
+                  border: `1px solid ${pill.color}30`,
+                  cursor: 'pointer',
+                  transition: 'all 0.12s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = pill.color
+                  e.currentTarget.style.color = '#fff'
+                  e.currentTarget.style.background = `${pill.color}15`
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = `${pill.color}30`
+                  e.currentTarget.style.color = 'var(--soc-text-medium)'
+                  e.currentTarget.style.background = 'var(--soc-bg-elevated)'
+                }}
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
           <CommandInput compact />
         </div>
       )}

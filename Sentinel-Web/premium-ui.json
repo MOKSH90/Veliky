@@ -1,0 +1,27 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["src/workbench"],
+  "locale": "en-IN",
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": [
+    "Select/Listbox",
+    "Form",
+    "Scrollbar",
+    "Toast",
+    "CRUD"
+  ],
+  "ownership": {
+    "Select/Listbox": "native"
+  },
+  "commands": {
+    "build": "npm run build",
+    "typecheck": "npm run typecheck",
+    "browser": "npm run qa:browser",
+    "format": "npm run format:check"
+  },
+  "requiredCommands": ["build", "typecheck", "browser", "format"],
+  "evidence": {
+    "crudFullFlow": "scripts/qa-browser.mjs",
+    "failurePaths": "scripts/qa-browser.mjs"
+  }
+}
