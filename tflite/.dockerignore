@@ -11,8 +11,8 @@ __pycache__
 scratch
 *.zstd
 node_modules
-tools/deepseek-harness/node_modules
-tools/deepseek-harness/**/node_modules
-tools/deepseek-harness/native/system/build
-tools/deepseek-harness/dist
-tools/deepseek-harness/website/.vitepress/dist
+tools/veliky-harness/node_modules
+tools/veliky-harness/**/node_modules
+tools/veliky-harness/native/system/build
+tools/veliky-harness/dist
+tools/veliky-harness/website/.vitepress/dist

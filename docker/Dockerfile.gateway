@@ -52,7 +52,7 @@ WORKDIR /app
 
 COPY tflite/RAG /app/tflite/RAG
 COPY tflite/veliky_vault /app/tflite/veliky_vault
-COPY tflite/deepseek_cli.py tflite/reinery_cli.py /app/tflite/
+COPY tflite/veliky_cli.py tflite/reinery_cli.py /app/tflite/
 COPY tflite/tools /app/tflite/tools
 COPY Veliky-Web/server /app/Veliky-Web/server
 COPY docker/entrypoint-gateway.sh /entrypoint.sh

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reinery — Sovereign Agentic AI Workbench with Integrated RAG.
 
-Unified CLI interface orchestrating the DeepSeek Harness Cordis micro-kernel,
+Unified CLI interface orchestrating the Veliky Harness Cordis micro-kernel,
 local open-weight models, and industrial RAG capabilities.
 """
 from __future__ import annotations
@@ -26,7 +26,7 @@ elif _OPT_VENV_PY.exists() and sys.prefix != "/opt/venv":
 RAG_DIR = ROOT / "RAG"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(RAG_DIR))
-sys.path.insert(0, str(ROOT / "tools/deepseek-harness/python/sdk/src"))
+sys.path.insert(0, str(ROOT / "tools/veliky-harness/python/sdk/src"))
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -72,8 +72,8 @@ def check_model_server(endpoint: str) -> bool:
 
 
 def cmd_agent(args: argparse.Namespace):
-    from deepseek_cli import DeepSeekCLI
-    cli = DeepSeekCLI(
+    from veliky_cli import VelikyCLI
+    cli = VelikyCLI(
         model=args.model,
         agent=args.agent,
         thinking=not getattr(args, "no_thinking", False),
@@ -82,7 +82,7 @@ def cmd_agent(args: argparse.Namespace):
 
 
 def cmd_chat(args: argparse.Namespace):
-    from deepseek_harness import DeepSeekHarness
+    from veliky_harness import VelikyHarness
     from veliky_service import BridgeConfig, VelikyService
 
     console.print()
@@ -114,7 +114,7 @@ def cmd_chat(args: argparse.Namespace):
 
     console.print("[dim]Initializing agent harness & mounting RAG MCP tools...[/dim]")
     try:
-        harness = DeepSeekHarness(
+        harness = VelikyHarness(
             dsh_home=str(ROOT / ".veliky-dsh"),
             cwd=str(ROOT),
             patches=(str(patch_path),),
@@ -359,9 +359,9 @@ def cmd_doctor(args: argparse.Namespace):
     # dsh binary
     dsh_bin = ROOT / "RAG/harness/dsh-source"
     if dsh_bin.exists():
-        table.add_row("DeepSeek Harness Runtime", "[green]OK[/green]", str(dsh_bin))
+        table.add_row("Veliky Harness Runtime", "[green]OK[/green]", str(dsh_bin))
     else:
-        table.add_row("DeepSeek Harness Runtime", "[red]Missing[/red]", "Run pnpm run build:native-system")
+        table.add_row("Veliky Harness Runtime", "[red]Missing[/red]", "Run pnpm run build:native-system")
 
     # Inference server
     server_up = check_model_server(args.endpoint)

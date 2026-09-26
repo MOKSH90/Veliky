@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/archived/simplification/2026-08-11-remove-sdk-project-toolchain.md
+2026-08-11-remove-sdk-project-toolchain.md: 08495a76ff641d378b4bb181c1746df4d332795a
+2026-08-11-remove-sdk-project-toolchain.zh.md: f0535dcf63ef69f2f3f04eba6246c0633206ea3b

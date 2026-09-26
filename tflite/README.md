@@ -1,6 +1,6 @@
 # Reinery — Sovereign Industrial Agentic AI Workbench
 
-An on-premise, air-gapped sovereign AI workbench for industrial telemetry, root-cause investigation, and multi-modal knowledge retrieval. Powered by DeepSeek Harness Cordis micro-kernel, FastMCP tool bridging, local open-weight language models, and multi-pass deterministic evidence verification.
+An on-premise, air-gapped sovereign AI workbench for industrial telemetry, root-cause investigation, and multi-modal knowledge retrieval. Powered by Veliky Harness Cordis micro-kernel, FastMCP tool bridging, local open-weight language models, and multi-pass deterministic evidence verification.
 
 ---
 

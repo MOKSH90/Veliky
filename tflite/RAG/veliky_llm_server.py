@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Robust local OpenAI-compatible inference server for open-weight Hugging Face models.
 
-Designed to serve models like Qwen2.5 to DeepSeek Harness via stdio MCP and pi-ai.
+Designed to serve models like Qwen2.5 to Veliky Harness via stdio MCP and pi-ai.
 Supports standard OpenAI endpoints:
   - GET  /v1/models
   - POST /v1/chat/completions (streaming and non-streaming, with tool_calls)

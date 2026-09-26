@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in real-model / DeepSeek Harness / MCP / Bubblewrap smoke evidence.
+"""Opt-in real-model / Veliky Harness / MCP / Bubblewrap smoke evidence.
 
 Never mocks inference and never approves proposals. Run registered and generate
 first, review with capability_admin.py, then run reuse after explicit approval.

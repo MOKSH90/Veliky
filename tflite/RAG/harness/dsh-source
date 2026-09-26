@@ -2,5 +2,5 @@
 set -euo pipefail
 veliky_repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 export DSH_HOME="${DSH_HOME:-$veliky_repo_root/.veliky-dsh}"
-cd "$veliky_repo_root/tools/deepseek-harness"
+cd "$veliky_repo_root/tools/veliky-harness"
 exec node --import tsx/esm apps/cli/src/bin.ts "$@"

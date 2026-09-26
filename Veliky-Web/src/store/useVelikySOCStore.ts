@@ -38,7 +38,7 @@ import { workspaces } from '../mock/data'
 import { velikyVaultTree, velikyVaultMemories, velikyVaultActivities } from '../mock/velikyVaultData'
 import { SOVEREIGN_PERSONAS } from '../lib/authPersonas'
 import { buildWikilinkGraph, flattenTree } from '../lib/wikilinkParser'
-import { processDeepSeekAgentPrompt } from '../services/deepseekAgentService'
+import { processVelikyAgentPrompt } from '../services/velikyAgentService'
 
 const initialPlan: PlanStep[] = [
   { id: 'p1', label: 'Inspect repository & vault context', status: 'pending' },
@@ -341,7 +341,7 @@ export const useVelikyStore = create<VelikySOCStore>((set, get) => ({
     const flatFiles = flattenTree(files)
 
     // Execute agent prompt asynchronously with full conversation history and vault context
-    const agentPromise = processDeepSeekAgentPrompt({
+    const agentPromise = processVelikyAgentPrompt({
       prompt: taskPrompt,
       agentPersona: activeAgentPersona,
       model: activeModel,

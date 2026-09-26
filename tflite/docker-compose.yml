@@ -82,6 +82,6 @@ volumes:
   # Persistent cache for Hugging Face model safetensors
   hf_cache:
     name: reinery_hf_cache
-  # Persistent session logs for DeepSeek Harness
+  # Persistent session logs for Veliky Harness
   dsh_sessions:
     name: reinery_dsh_sessions

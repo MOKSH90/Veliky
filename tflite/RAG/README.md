@@ -1,10 +1,10 @@
-# VELIKY RAG ↔ DeepSeek Harness
+# VELIKY RAG ↔ Veliky Harness
 
-VELIKY uses the checked-in DeepSeek Harness for agent turns, local inference, approval prompts, tool traces and session persistence. Python owns retrieval, the permission-filtered vault graph, sensor history, bounded arithmetic and independent verification. The MCP bridge does not instantiate `VelikyWorkbench` or load its generative model; doing so would duplicate the harness's reasoning loop.
+VELIKY uses the checked-in Veliky Harness for agent turns, local inference, approval prompts, tool traces and session persistence. Python owns retrieval, the permission-filtered vault graph, sensor history, bounded arithmetic and independent verification. The MCP bridge does not instantiate `VelikyWorkbench` or load its generative model; doing so would duplicate the harness's reasoning loop.
 
 ```mermaid
 flowchart TD
-    U[User in dsh web or SDK] --> H[DeepSeek Harness agent loop]
+    U[User in dsh web or SDK] --> H[Veliky Harness agent loop]
     S[CSV historian / simulator] --> W[Deterministic sensor watcher]
     W -->|same SDK run_goal| H
     H --> L[Local OpenAI-compatible model endpoint]
@@ -34,14 +34,14 @@ python3 -m venv .venv
 Use the checked-in harness, whose current APIs are newer than the published npm release tested during development. Prepare it using its declared pnpm version (11.7.0), Node version and build commands:
 
 ```bash
-cd tools/deepseek-harness
+cd tools/veliky-harness
 pnpm install --frozen-lockfile
 pnpm run build:native-system
 pnpm run build:lib:host
 cd ../..
 ```
 
-`RAG/harness/dsh-source` invokes the supported `dsh --profile` source launcher. It does not replace the SDK's argv or launch an internal SDK application directly. For the browser frontend also run `pnpm run build:lib:client` followed by `pnpm run build:web` inside `tools/deepseek-harness`.
+`RAG/harness/dsh-source` invokes the supported `dsh --profile` source launcher. It does not replace the SDK's argv or launch an internal SDK application directly. For the browser frontend also run `pnpm run build:lib:client` followed by `pnpm run build:web` inside `tools/veliky-harness`.
 
 Start an already provisioned local, tool-capable OpenAI-compatible model server (Ollama or vLLM). Configure the endpoint and exact installed model name:
 

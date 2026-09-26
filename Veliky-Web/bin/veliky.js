@@ -89,7 +89,7 @@ program
         break;
       }
     }
-    const scriptPath = path.join(__dirname, 'deepseek_cli.py');
+    const scriptPath = path.join(__dirname, 'veliky_cli.py');
 
     const cli = spawn(pythonBin, [scriptPath, '--model', options.model, '--agent', options.agent], {
       cwd: process.cwd(),
@@ -163,7 +163,7 @@ program
     console.log(`🌐 Local IP          : ${localIP}`);
     console.log(`🔌 Web Port          : ${PORT}`);
     console.log(`📚 RAG Engine        : Open-Notebook (Port 8000)`);
-    console.log(`🤖 Agent Runtime     : DeepSeek Harness (Port 3080)`);
+    console.log(`🤖 Agent Runtime     : Veliky Harness (Port 3080)`);
     console.log(`🟢 System Status     : Ready / Operational\n`);
   });
 

@@ -10,7 +10,7 @@ human approval of the exact proposal below; it has not been silently authorized.
 - CPU inference, four Torch threads; Torch `2.14.0+cpu`, Transformers `5.17.0`.
 - Loopback endpoint `http://127.0.0.1:18080/v1`; cached-only model loading,
   remote model code disabled. No downloaded model or mocked inference responses.
-- Existing installed DeepSeek Harness runtime at
+- Existing installed Veliky Harness runtime at
   `/home/lucifer/Projects/Tflite/reinery/RAG/harness/dsh-source`, using this
   checkout's policy, MCP service, registry and execution code.
 - Capability runtime installed in this checkout's `tflite/.venv`.
@@ -23,7 +23,7 @@ human approval of the exact proposal below; it has not been silently authorized.
 |---|---|
 | Registry, sandbox, policy, audit, approval lifecycle, existing MCP regressions | 67 Python tests passed |
 | Harness policy, including rejecting completion without tool evidence | Passed |
-| Real model → DeepSeek Harness → MCP → registered `text_search` → Bubblewrap | Passed; latest run 42.01 seconds |
+| Real model → Veliky Harness → MCP → registered `text_search` → Bubblewrap | Passed; latest run 42.01 seconds |
 | Exact stdout from registered tool | `1:VELIKY live capability test` |
 | Real model → harness → unknown `reverse_text` → local model generation → sandbox → approval gate | Passed; 43.98 seconds |
 | Generated source result | `VELIKY` → `LENITNES`, exit 0, Bubblewrap |

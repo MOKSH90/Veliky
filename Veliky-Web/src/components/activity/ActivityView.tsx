@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, XCircle, Clock3, ChevronRight, TerminalSquare, ShieldCheck, LoaderCircle, Circle, Radio, History } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useEdithStore } from '../../store/useEdithStore'
-import { DeepSeekAgentPanel } from '../agent/DeepSeekAgentPanel'
+import { VelikyAgentPanel } from '../agent/VelikyAgentPanel'
 
 export function ActivityView(){
   const activity=useEdithStore((s)=>s.activity)
@@ -25,7 +25,7 @@ export function ActivityView(){
       <div>
         <span className="eyebrow">SUBAGENT ENGINE & AUDIT LOGS</span>
         <h1>Agent Studio & Activity Logs</h1>
-        <p>Managed subagents powered by DeepSeek Harness (`dsh`) and execution history.</p>
+        <p>Managed subagents powered by Veliky Harness (`dsh`) and execution history.</p>
       </div>
       <div className="activity-tabs">
         <button className={mode==='current'?'active':''} onClick={()=>{setMode('current');if(logs[0])setSelected(`log:${logs[0].id}`)}} disabled={!logs.length}>
@@ -37,8 +37,8 @@ export function ActivityView(){
       </div>
     </header>
 
-    {/* DeepSeek Harness Subagent Panel */}
-    <DeepSeekAgentPanel />
+    {/* Veliky Harness Subagent Panel */}
+    <VelikyAgentPanel />
 
     <div className="activity-grid upgraded">
       <section className="timeline">

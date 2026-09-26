@@ -27,9 +27,9 @@ Veliky-App/build
 Veliky-App/app/build
 Veliky-App/.idea
 
-# DeepSeek Harness monorepo local builds
-tflite/tools/deepseek-harness/node_modules
-tflite/tools/deepseek-harness/**/node_modules
+# Veliky Harness monorepo local builds
+tflite/tools/veliky-harness/node_modules
+tflite/tools/veliky-harness/**/node_modules
 
 # Huggingface and caches
 .cache

@@ -27,7 +27,7 @@ flowchart TD
 
         subgraph CLI["Service: reinery"]
             UI[Interactive CLI Workbench<br/>reinery chat | investigate | rag]
-            DSH_CORE[DeepSeek Harness Micro-kernel<br/>Node.js 22 + Cordis Plugin System]
+            DSH_CORE[Veliky Harness Micro-kernel<br/>Node.js 22 + Cordis Plugin System]
             MCP[Veliky FastMCP Bridge<br/>Python 3.11 + Tools]
             RAG_ENG[Tri-Hybrid RAG Engine<br/>BM25 + Dense Vector + Vault Graph]
             VERIF[Independent Deterministic Verifier]
@@ -57,7 +57,7 @@ sudo systemctl start docker
 ```
 
 ### 2. Build the Container Image
-Build the multi-runtime image (Debian Bookworm + Node.js 22 + Python 3.11 venv + CPU PyTorch + compiled DeepSeek Harness):
+Build the multi-runtime image (Debian Bookworm + Node.js 22 + Python 3.11 venv + CPU PyTorch + compiled Veliky Harness):
 ```bash
 docker compose build
 ```
@@ -131,7 +131,7 @@ You can customize the deployment by setting environment variables in `docker-com
 | `ROLE` | `analyst` | Role clearance level (`operator`, `technician`, `analyst`, `safety_officer`) |
 | `RETRIEVAL` | `hybrid` | Retrieval strategy (`hybrid` for BM25+Vector, `vault` for keyword only) |
 | `SERVE_HOST` | `0.0.0.0` | Bind host for local inference server |
-| `DSH_HOME` | `/app/.veliky-dsh` | DeepSeek Harness state and session storage |
+| `DSH_HOME` | `/app/.veliky-dsh` | Veliky Harness state and session storage |
 
 ---
 

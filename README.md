@@ -31,8 +31,8 @@ Veliky/
 │   ├── RAG/veliky_vault/       Bundled equipment, report, and SOP examples
 │   ├── veliky_vault/           Vault mounted by the root Docker configuration
 │   ├── index_store/            Retrieval index and chunk data
-│   ├── tools/deepseek-harness/ Embedded agent harness
-│   ├── deepseek_cli.py         Interactive agent CLI
+│   ├── tools/veliky-harness/   Embedded agent harness
+│   ├── veliky_cli.py           Interactive agent CLI
 │   └── reinery_cli.py          Existing investigation and diagnostics CLI
 ├── docker/                     Container builds and gateway entry point
 ├── docker-compose.yml          Multi-service deployment configuration

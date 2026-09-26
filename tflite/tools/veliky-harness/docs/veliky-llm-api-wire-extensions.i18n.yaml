@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/veliky-llm-api-wire-extensions.md
+veliky-llm-api-wire-extensions.md: 644e96f546eb2715c5b82443f811496581f65985
+veliky-llm-api-wire-extensions.zh.md: 2b51d0718cf4d5d0baf93035b933fe9591918dd3

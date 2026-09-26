@@ -1,6 +1,6 @@
 # ==============================================================================
 # Reinery: Sovereign Agentic AI Workbench Container
-# Integrates DeepSeek Harness runtime, Local Open-Weight Models, and Industrial RAG
+# Integrates Veliky Harness runtime, Local Open-Weight Models, and Industrial RAG
 # ==============================================================================
 
 FROM node:22-bookworm-slim
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bubblewrap util-linux poppler-utils tesseract-ocr imagemagick tar gzip grep \
  && rm -rf /var/lib/apt/lists/*
 
-# 2. Install pnpm (exact version matched to deepseek-harness)
+# 2. Install pnpm (exact version matched to veliky-harness)
 RUN npm install -g pnpm@11.7.0
 
 # 3. Create isolated Python virtual environment
@@ -46,10 +46,10 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
         sentence-transformers \
         pymilvus
 
-# 5. Copy and build the DeepSeek Harness runtime
+# 5. Copy and build the Veliky Harness runtime
 WORKDIR /app
-COPY tools/deepseek-harness /app/tools/deepseek-harness
-WORKDIR /app/tools/deepseek-harness
+COPY tools/veliky-harness /app/tools/veliky-harness
+WORKDIR /app/tools/veliky-harness
 RUN pnpm install --frozen-lockfile && \
     pnpm run build:native-system && \
     pnpm run build:lib:host && \

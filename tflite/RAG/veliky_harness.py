@@ -123,9 +123,9 @@ def configure(output: Path, endpoint: str, model: str, role="analyst", retrieval
 
 def sdk_class():
     # Use this checkout's SDK API, not a potentially incompatible installed version.
-    sys.path.insert(0, str(ROOT / "tools/deepseek-harness/python/sdk/src"))
-    from deepseek_harness import DeepSeekHarness
-    return DeepSeekHarness
+    sys.path.insert(0, str(ROOT / "tools/veliky-harness/python/sdk/src"))
+    from veliky_harness_sdk import VelikyHarness
+    return VelikyHarness
 
 
 def run_goal(prompt, *, patch, home, model, dsh_bin=None, session_id=None, service=None, harness_factory=None):

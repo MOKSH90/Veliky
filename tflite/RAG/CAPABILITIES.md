@@ -231,7 +231,7 @@ a real tool result. It leaves the existing investigation verification gate intac
   --dsh-bin /path/to/installed/dsh --patch /tmp/capability.patch.yml --retrieval vault
 ```
 
-The live smoke uses real DeepSeek Harness, local model responses, MCP transport,
+The live smoke uses real Veliky Harness, local model responses, MCP transport,
 Bubblewrap and audit evidence. It never injects canned model answers and never
 approves proposals automatically:
 
