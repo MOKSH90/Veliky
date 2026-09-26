@@ -97,7 +97,7 @@ class SandboxExecutor:
                     raise ValueError('Shell metacharacters are forbidden')
             if not Path('/usr/bin/bwrap').is_file() or not Path('/usr/bin/prlimit').is_file():
                 raise RuntimeError('Sandbox unavailable: Linux Bubblewrap and prlimit are required')
-            with tempfile.TemporaryDirectory(prefix='sentinel-cap-') as tmp:
+            with tempfile.TemporaryDirectory(prefix='veliky-cap-') as tmp:
                 work = Path(tmp)
                 data = dict(validated_input)
                 index = 0

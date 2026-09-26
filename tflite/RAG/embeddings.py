@@ -1,6 +1,6 @@
 from __future__ import annotations
 """
-SENTINEL — Sovereign Enterprise Neural Tool-Intelligence & Evidence Layer
+VELIKY — Sovereign Enterprise Neural Tool-Intelligence & Evidence Layer
 Universal Multimodal Knowledge Ingestion & Vector Pipeline
 
 Commercial-Grade Enterprise Ingestion Engine:
@@ -65,7 +65,7 @@ except ImportError:
 def _setup_logging(level: str = "INFO") -> logging.Logger:
     fmt = "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s"
     logging.basicConfig(format=fmt, datefmt="%Y-%m-%d %H:%M:%S", level=level.upper())
-    return logging.getLogger("sentinel.ingest")
+    return logging.getLogger("veliky.ingest")
 
 
 log = _setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
@@ -98,7 +98,7 @@ class PipelineConfig:
     Enterprise Runtime Configuration — overridable via CLI, YAML, or environment.
     """
     domain: str = field(
-        default_factory=lambda: os.environ.get("SENTINEL_DOMAIN", "general")
+        default_factory=lambda: os.environ.get("VELIKY_DOMAIN", "general")
     )
     embed_model: str = field(
         default_factory=lambda: os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2")
@@ -127,7 +127,7 @@ class PipelineConfig:
         default_factory=lambda: Path(os.environ.get("OUTPUT_DIR", "./index_store"))
     )
     vault_dir: Path = field(
-        default_factory=lambda: Path(os.environ.get("VAULT_DIR", "./sentinel_vault"))
+        default_factory=lambda: Path(os.environ.get("VAULT_DIR", "./veliky_vault"))
     )
     run_id: str = ""
 
@@ -194,7 +194,7 @@ class PipelineConfig:
     @property
     def chunks_backup_path(self) -> Path:
         suffix = f"_{self.run_id}" if self.run_id else ""
-        return self.output_dir / f"sentinel_chunks{suffix}.json"
+        return self.output_dir / f"veliky_chunks{suffix}.json"
 
     @property
     def hash_cache_path(self) -> Path:
@@ -240,7 +240,7 @@ class RunMetrics:
 
     def report(self) -> None:
         log.info("─" * 60)
-        log.info("SENTINEL Commercial Ingestion Metrics")
+        log.info("VELIKY Commercial Ingestion Metrics")
         log.info("  Sources processed     : %d", self.sources_processed)
         log.info("  Sources skipped       : %d (unchanged)", self.sources_skipped)
         log.info("  Sources failed        : %d", self.sources_failed)
@@ -458,7 +458,7 @@ def _pdf_text_quality(text: str) -> float:
 
 
 def _ocr_pdf_page(path: str, page_number: int, dpi: int = 150) -> tuple[int, str]:
-    with tempfile.TemporaryDirectory(prefix="sentinel-ocr-") as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="veliky-ocr-") as tmp_dir:
         image_root = Path(tmp_dir) / "page"
         render = subprocess.run(
             [
@@ -698,7 +698,7 @@ def _scrape_url(url: str, timeout: int = 15, retries: int = 3) -> str:
     last_exc: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            resp = requests.get(url, timeout=timeout, headers={"User-Agent": "SENTINEL-Ingest/1.0"})
+            resp = requests.get(url, timeout=timeout, headers={"User-Agent": "VELIKY-Ingest/1.0"})
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
             for tag in soup(["script", "style", "nav", "footer", "head", "noscript"]):
@@ -971,7 +971,7 @@ def save_outputs(
         ]
     output = {
         "_metadata": {
-            "system": "SENTINEL — Sovereign Enterprise Knowledge Layer",
+            "system": "VELIKY — Sovereign Enterprise Knowledge Layer",
             "domain": cfg.domain,
             "incremental": cfg.incremental,
             "skipped_sources": skipped_sources,
@@ -1060,7 +1060,7 @@ def run_pipeline(cfg: PipelineConfig) -> RunMetrics:
     )
 
     if not source_list:
-        raise ConfigError("No sources found to ingest. Place files in ./sentinel_vault or ./data, or use CLI flags.")
+        raise ConfigError("No sources found to ingest. Place files in ./veliky_vault or ./data, or use CLI flags.")
 
     log.info("Ingesting %d enterprise document(s) (Domain: %s) …", len(source_list), cfg.domain)
 
@@ -1190,11 +1190,11 @@ def run_pipeline(cfg: PipelineConfig) -> RunMetrics:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="sentinel_ingest",
-        description="SENTINEL: Commercial Multimodal Enterprise Ingestion & Vector Pipeline.",
+        prog="veliky_ingest",
+        description="VELIKY: Commercial Multimodal Enterprise Ingestion & Vector Pipeline.",
     )
     p.add_argument("--domain",            default="general", choices=["general", "industrial", "finance", "legal", "it_ops", "healthcare"], help="Domain profile")
-    p.add_argument("--vault-dir",         metavar="DIR", default="./sentinel_vault", help="Knowledge Vault directory")
+    p.add_argument("--vault-dir",         metavar="DIR", default="./veliky_vault", help="Knowledge Vault directory")
     p.add_argument("--output-dir",        metavar="DIR", default="./index_store",    help="Milvus index directory")
     p.add_argument("--note",              metavar="FILE", action="append", default=[], dest="notes",        help="Markdown file(s)")
     p.add_argument("--pdf",               metavar="FILE", action="append", default=[], dest="pdfs",         help="PDF file(s)")
@@ -1234,7 +1234,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.no_auto_discover: cfg.auto_discover = False
 
         log.info("=" * 60)
-        log.info("SENTINEL — Universal Enterprise Knowledge Ingestion Engine")
+        log.info("VELIKY — Universal Enterprise Knowledge Ingestion Engine")
         log.info("  Domain        : %s", cfg.domain.upper())
         log.info("  Vault dir     : %s", cfg.vault_dir)
         log.info("  Output dir    : %s", cfg.output_dir)
@@ -1244,7 +1244,7 @@ def main(argv: list[str] | None = None) -> int:
 
         metrics = run_pipeline(cfg)
         metrics.report()
-        log.info("SENTINEL Ingestion complete.")
+        log.info("VELIKY Ingestion complete.")
         return 0
 
     except ConfigError as exc:

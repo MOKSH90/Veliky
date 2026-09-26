@@ -1,6 +1,6 @@
 from __future__ import annotations
 """
-SENTINEL — Sovereign Enterprise Neural Tool-Intelligence & Evidence Layer
+VELIKY — Sovereign Enterprise Neural Tool-Intelligence & Evidence Layer
 Commercial Multi-Domain Industrial, Financial, Legal & IT RAG Workbench
 
 SIH 2026 — Problem Statement #26117:
@@ -20,15 +20,15 @@ Commercial Architecture Highlights:
       3. Contradiction Detector (Conflicting reports & records)
       4. 3-Tier Enterprise Policy Engine (Auto-approve, Requires approval, Blocked)
   - Proactive Event Watcher (Differentiator 7.4): Industrial, Financial & SRE triggers
-  - Enterprise Python SDK (SentinelWorkbench) + Mission Control Interactive CLI
+  - Enterprise Python SDK (VelikyWorkbench) + Mission Control Interactive CLI
   - Audit Trail & Executive HTML Reports with Inline Base64 Visualizations
 """
 
 import argparse
 if __package__:
-    from .sentinel_security import ROLE_CLEARANCE, can_read, calculate
+    from .veliky_security import ROLE_CLEARANCE, can_read, calculate
 else:
-    from sentinel_security import ROLE_CLEARANCE, can_read, calculate
+    from veliky_security import ROLE_CLEARANCE, can_read, calculate
 import base64
 import csv
 import html
@@ -101,7 +101,7 @@ def _setup_logging(level: str = "INFO") -> logging.Logger:
     logging.basicConfig(format=fmt, datefmt="%Y-%m-%d %H:%M:%S", level=level.upper())
     for logger_name in ["httpx", "httpcore", "sentence_transformers", "huggingface_hub", "transformers", "urllib3"]:
         logging.getLogger(logger_name).setLevel(logging.CRITICAL)
-    return logging.getLogger("sentinel.workbench")
+    return logging.getLogger("veliky.workbench")
 
 
 log = _setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
@@ -111,16 +111,16 @@ log = _setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
 # CUSTOM EXCEPTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
-class SENTINELPipelineError(RuntimeError):
-    """Base error for SENTINEL."""
+class VELIKYPipelineError(RuntimeError):
+    """Base error for VELIKY."""
 
-class ModelLoadError(SENTINELPipelineError):
+class ModelLoadError(VELIKYPipelineError):
     """Raised when a local open-weight model cannot be loaded."""
 
-class VectorStoreError(SENTINELPipelineError):
+class VectorStoreError(VELIKYPipelineError):
     """Raised when the Milvus vector store cannot be reached or read."""
 
-class ConfigError(SENTINELPipelineError):
+class ConfigError(VELIKYPipelineError):
     """Raised for invalid configuration."""
 
 
@@ -204,13 +204,13 @@ DOMAIN_PROFILES = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
-class SENTINELConfig:
-    domain:       str   = field(default_factory=lambda: os.environ.get("SENTINEL_DOMAIN", "general"))
+class VELIKYConfig:
+    domain:       str   = field(default_factory=lambda: os.environ.get("VELIKY_DOMAIN", "general"))
     company_name: str   = field(default_factory=lambda: os.environ.get("COMPANY_NAME", "Enterprise Operations"))
-    user_role:    str   = field(default_factory=lambda: os.environ.get("SENTINEL_ROLE", "analyst"))
+    user_role:    str   = field(default_factory=lambda: os.environ.get("VELIKY_ROLE", "analyst"))
 
     index_dir:    Path  = field(default_factory=lambda: Path(os.environ.get("INDEX_DIR", "./index_store")))
-    vault_dir:    Path  = field(default_factory=lambda: Path(os.environ.get("VAULT_DIR", "./sentinel_vault")))
+    vault_dir:    Path  = field(default_factory=lambda: Path(os.environ.get("VAULT_DIR", "./veliky_vault")))
 
     top_k:        int   = field(default_factory=lambda: int(os.environ.get("RAG_TOP_K", "8")))
     min_score:    float = field(default_factory=lambda: float(os.environ.get("RAG_MIN_SCORE", "0.20")))
@@ -411,7 +411,7 @@ _QWEN_VL_MIN_PIXELS = 256 * 28 * 28
 _QWEN_VL_MAX_PIXELS = 1024 * 28 * 28
 
 
-def check_system_memory(cfg: SENTINELConfig) -> tuple[str, Any, bool]:
+def check_system_memory(cfg: VELIKYConfig) -> tuple[str, Any, bool]:
     if torch is None:
         return "mock_model", None, False
 
@@ -456,7 +456,7 @@ def check_system_memory(cfg: SENTINELConfig) -> tuple[str, Any, bool]:
     return "google/gemma-3-1b-it", torch.float16, False
 
 
-def load_llm(model_id: str, torch_dtype: Any, cfg: SENTINELConfig, is_multimodal: bool) -> tuple:
+def load_llm(model_id: str, torch_dtype: Any, cfg: VELIKYConfig, is_multimodal: bool) -> tuple:
     if AutoTokenizer is None or AutoModelForCausalLM is None:
         raise ModelLoadError("transformers and torch are required. Install with: pip install torch transformers bitsandbytes")
 
@@ -541,7 +541,7 @@ def load_visual_embedding_model() -> SentenceTransformer:
 # INDEX LOADING & BM25
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_data(cfg: SENTINELConfig) -> tuple[MilvusIndex, BM25Okapi, list[dict]]:
+def load_data(cfg: VELIKYConfig) -> tuple[MilvusIndex, BM25Okapi, list[dict]]:
     if MilvusClient is None:
         raise VectorStoreError("pymilvus is required. Install with: pip install pymilvus")
     try:
@@ -624,7 +624,7 @@ def retrieve(
     milvus_index:     MilvusIndex,
     bm25:             BM25Okapi | None,
     pages_and_chunks: list[dict],
-    cfg:              SENTINELConfig,
+    cfg:              VELIKYConfig,
     vault:            KnowledgeVault | None = None,
     diagnostics:      list[str] | None = None,
 ) -> list[dict]:
@@ -802,7 +802,7 @@ class SandboxedCalculationEngine:
 def build_investigation_prompt(
     request: str,
     context_items: list[dict],
-    cfg: SENTINELConfig,
+    cfg: VELIKYConfig,
     violations: list[str] | None = None,
     images_attached: bool = False,
 ) -> str:
@@ -831,7 +831,7 @@ def build_investigation_prompt(
             + "\n"
         )
 
-    return f"""You are SENTINEL, a {domain_meta['persona']}.
+    return f"""You are VELIKY, a {domain_meta['persona']}.
 You are running on-premise for confidential enterprise operations at {cfg.company_name}.
 Domain: {cfg.domain.upper()} ({domain_meta['title']})
 {domain_meta['guidelines']}
@@ -910,7 +910,7 @@ def generate_answer(
     prompt:        str,
     processor:     Any,
     llm:           Any,
-    cfg:           SENTINELConfig,
+    cfg:           VELIKYConfig,
     is_multimodal: bool = False,
     images:        list[Image.Image] | None = None,
     temperature:   float = 0.2,
@@ -1090,7 +1090,7 @@ def render_investigation_visuals(investigation: dict, out_dir: Path) -> str | No
             ax.text(bar.get_x() + bar.get_width()/2.0, yval + (max(vals)*0.03), f"{yval:.1f}", ha="center", va="bottom", fontweight="bold")
 
         ax.set_ylabel("Value")
-        ax.set_title(f"SENTINEL Verification Chart — {investigation.get('equipment_id', 'Entity')}")
+        ax.set_title(f"VELIKY Verification Chart — {investigation.get('equipment_id', 'Entity')}")
         ax.grid(axis="y", linestyle="--", alpha=0.5)
         fig.tight_layout()
 
@@ -1140,7 +1140,7 @@ def export_investigation_html(
     blocks = [
         "<div class='card'>",
         "<div class='header'>",
-        f"<h1>SENTINEL Enterprise Investigation Report</h1>",
+        f"<h1>VELIKY Enterprise Investigation Report</h1>",
         f"<p><b>Target Asset/Subject:</b> {html.escape(eq_id)} &nbsp;|&nbsp; <b>ID:</b> <code>{html.escape(inv_id)}</code> &nbsp;|&nbsp; <b>Domain:</b> {html.escape(investigation.get('domain', 'general')).upper()}</p>",
         f"<div><span class='badge badge-{verdict}'>{html.escape(verdict)}</span>",
         f"<span class='badge badge-approval'>Policy: {html.escape(tier)}</span>",
@@ -1192,12 +1192,12 @@ def export_investigation_html(
 
     blocks.append(
         f"<div class='audit-stamp'>"
-        f"SENTINEL Sovereign AI Workbench &nbsp;|&nbsp; 100% On-Premise Execution &nbsp;|&nbsp; "
+        f"VELIKY Sovereign AI Workbench &nbsp;|&nbsp; 100% On-Premise Execution &nbsp;|&nbsp; "
         f"Verified by Sandboxed Python Engine &nbsp;|&nbsp; Policy Tier: <b>{tier}</b>"
         f"</div></div>"
     )
 
-    doc = f"<!doctype html><html><head><meta charset='utf-8'><title>SENTINEL Report — {html.escape(eq_id)}</title><style>{_REPORT_CSS}</style></head><body>{''.join(blocks)}</body></html>"
+    doc = f"<!doctype html><html><head><meta charset='utf-8'><title>VELIKY Report — {html.escape(eq_id)}</title><style>{_REPORT_CSS}</style></head><body>{''.join(blocks)}</body></html>"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_file = out_dir / f"{inv_id}.html"
     out_file.write_text(doc, encoding="utf-8")
@@ -1216,7 +1216,7 @@ def run_investigation(
     milvus_index:     MilvusIndex,
     bm25:             BM25Okapi | None,
     pages_and_chunks: list[dict],
-    cfg:              SENTINELConfig,
+    cfg:              VELIKYConfig,
     vault:            KnowledgeVault,
     audit:            AuditTrail,
     is_multimodal:    bool = False,
@@ -1234,7 +1234,7 @@ def run_investigation(
     elif any(w in req_lower for w in ["clause", "nda", "contract", "indemnity", "breach", "counsel"]):
         cfg.domain = "legal"
 
-    log.info("── SENTINEL Investigation [%s] ────────────────", cfg.domain.upper())
+    log.info("── VELIKY Investigation [%s] ────────────────", cfg.domain.upper())
     log.info("Request: %s", request)
 
     context_items = retrieve(request, emb_model, milvus_index, bm25, pages_and_chunks, cfg, vault=vault)
@@ -1315,7 +1315,7 @@ def run_proactive_watcher(
     milvus_index: MilvusIndex,
     bm25: BM25Okapi | None,
     pages_and_chunks: list[dict],
-    cfg: SENTINELConfig,
+    cfg: VELIKYConfig,
     vault: KnowledgeVault,
     audit: AuditTrail,
     is_multimodal: bool = False,
@@ -1326,7 +1326,7 @@ def run_proactive_watcher(
         W = 80
 
     print("\n" + "═" * W)
-    print(f"  SENTINEL Autonomous Event Watcher — Scenario: {scenario.upper()} (Differentiator 7.4)")
+    print(f"  VELIKY Autonomous Event Watcher — Scenario: {scenario.upper()} (Differentiator 7.4)")
     print("═" * W)
 
     if scenario == "finance":
@@ -1378,14 +1378,14 @@ def run_proactive_watcher(
 # COMMERCIAL PYTHON SDK INTERFACE
 # ─────────────────────────────────────────────────────────────────────────────
 
-class SentinelWorkbench:
+class VelikyWorkbench:
     """
-    Commercial Python SDK for embedding SENTINEL into external platforms,
+    Commercial Python SDK for embedding VELIKY into external platforms,
     enterprise web applications, or custom corporate dashboards.
     """
 
-    def __init__(self, domain: str = "general", role: str = "analyst", index_dir: str = "./index_store", vault_dir: str = "./sentinel_vault"):
-        self.cfg = SENTINELConfig(domain=domain, user_role=role, index_dir=Path(index_dir), vault_dir=Path(vault_dir))
+    def __init__(self, domain: str = "general", role: str = "analyst", index_dir: str = "./index_store", vault_dir: str = "./veliky_vault"):
+        self.cfg = VELIKYConfig(domain=domain, user_role=role, index_dir=Path(index_dir), vault_dir=Path(vault_dir))
         self.cfg.validate()
         self.vault = KnowledgeVault(self.cfg.vault_dir)
         self.audit = AuditTrail(self.cfg.audit_dir)
@@ -1423,7 +1423,7 @@ def run_interactive(
     milvus_index:     MilvusIndex,
     bm25:             BM25Okapi | None,
     pages_and_chunks: list[dict],
-    cfg:              SENTINELConfig,
+    cfg:              VELIKYConfig,
     vault:            KnowledgeVault,
     audit:            AuditTrail,
     is_multimodal:    bool = False,
@@ -1434,7 +1434,7 @@ def run_interactive(
         W = 80
 
     print("\n" + "═" * W)
-    print(f"  SENTINEL — Sovereign Enterprise AI Workbench (SIH PS #26117)")
+    print(f"  VELIKY — Sovereign Enterprise AI Workbench (SIH PS #26117)")
     print(f"  Domain: {cfg.domain.upper()} | Role: {cfg.user_role} | Vision: {'ON' if is_multimodal else 'OFF'}")
     print("═" * W)
     print("  Commands:")
@@ -1449,7 +1449,7 @@ def run_interactive(
 
     while True:
         try:
-            user_input = input(f"SENTINEL ({cfg.domain}) > ").strip()
+            user_input = input(f"VELIKY ({cfg.domain}) > ").strip()
         except (EOFError, KeyboardInterrupt):
             break
 
@@ -1486,7 +1486,7 @@ def run_interactive(
             continue
 
         if user_input == "/audit":
-            print("\n--- Recent SENTINEL Audit Records ---")
+            print("\n--- Recent VELIKY Audit Records ---")
             for a in audit.recent_entries(5):
                 print(f"  [{a.get('timestamp')}] {a.get('investigation_id')} | Asset: {a.get('target_entity')} | Verdict: {a.get('verdict')} | Tier: {a.get('policy_tier')}")
             print("-------------------------------------\n")
@@ -1531,7 +1531,7 @@ def run_interactive(
         except Exception:
             log.error("Investigation error:\n%s", traceback.format_exc())
 
-    print("\nSENTINEL Workbench offline. Goodbye.\n")
+    print("\nVELIKY Workbench offline. Goodbye.\n")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1540,12 +1540,12 @@ def run_interactive(
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="sentinel_workbench",
-        description="SENTINEL: Commercial Sovereign Enterprise AI Workbench (SIH PS #26117).",
+        prog="veliky_workbench",
+        description="VELIKY: Commercial Sovereign Enterprise AI Workbench (SIH PS #26117).",
     )
     p.add_argument("--domain",          default="general", choices=["general", "industrial", "finance", "legal", "it_ops", "healthcare"], help="Domain profile")
     p.add_argument("--index-dir",       metavar="DIR",  default=None,  help="Milvus index directory (default: ./index_store)")
-    p.add_argument("--vault-dir",       metavar="DIR",  default=None,  help="Knowledge Vault directory (default: ./sentinel_vault)")
+    p.add_argument("--vault-dir",       metavar="DIR",  default=None,  help="Knowledge Vault directory (default: ./veliky_vault)")
     p.add_argument("--model",           metavar="NAME", default=None,  help="Open-weight model override")
     p.add_argument("--investigate",     metavar="TEXT", default=None,  help="Run one investigation on command and exit (Script A)")
     p.add_argument("--proactive",       metavar="SCENARIO", choices=["industrial", "finance", "it_ops"], default=None, help="Run proactive autonomous watcher (Script B)")
@@ -1566,7 +1566,7 @@ def main(argv: list[str] | None = None) -> int:
     log = _setup_logging(args.log_level)
 
     try:
-        cfg = SENTINELConfig()
+        cfg = VELIKYConfig()
         if args.domain:      cfg.domain = args.domain
         if args.index_dir:   cfg.index_dir = Path(args.index_dir)
         if args.vault_dir:   cfg.vault_dir = Path(args.vault_dir)
@@ -1581,7 +1581,7 @@ def main(argv: list[str] | None = None) -> int:
         audit = AuditTrail(cfg.audit_dir)
 
         log.info("=" * 60)
-        log.info("SENTINEL — Sovereign Universal Enterprise AI Workbench")
+        log.info("VELIKY — Sovereign Universal Enterprise AI Workbench")
         log.info("  Domain       : %s (%s)", cfg.domain.upper(), DOMAIN_PROFILES[cfg.domain]["title"])
         log.info("  Role         : %s", cfg.user_role)
         log.info("  Vault dir    : %s", cfg.vault_dir)

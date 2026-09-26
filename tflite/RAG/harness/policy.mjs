@@ -1,7 +1,7 @@
-/** SENTINEL policy and mandatory verified-report completion, using public hooks. */
-export const name = 'sentinel-policy'
+/** VELIKY policy and mandatory verified-report completion, using public hooks. */
+export const name = 'veliky-policy'
 export const inject = ['tools', 'approval']
-const PREFIX = 'mcp__sentinel__'
+const PREFIX = 'mcp__veliky__'
 export const names = ['search_documents', 'read_document', 'read_vault_note', 'get_vault_backlinks',
   'traverse_graph', 'analyze_equipment_drawing', 'calculate_metric', 'query_sensor_history',
   'verify_evidence', 'write_vault_note', 'request_capability'].map(name => PREFIX + name)
@@ -16,7 +16,7 @@ export function stable(value) {
 export function apply(ctx) {
   const verified = new WeakMap()
   const capabilityEvidence = new WeakMap()
-  ctx.tools.guard(exec => allowed.has(exec.name) ? undefined : 'SENTINEL BLOCKED: only the approved industrial MCP tools may execute.')
+  ctx.tools.guard(exec => allowed.has(exec.name) ? undefined : 'VELIKY BLOCKED: only the approved industrial MCP tools may execute.')
   ctx.on('tools/pre-execute', async (exec, next) => {
     const decision = await next()
     if (decision.kind === 'deny' || decision.kind === 'ask') return decision
@@ -46,9 +46,9 @@ export function apply(ctx) {
     }
   })
   ctx.on('agent/turn-stopping', ({ agent }) => {
-    if (process.env.SENTINEL_MODE === 'chat') return
-    if (process.env.SENTINEL_MODE === 'capability') {
-      if (!capabilityEvidence.has(agent)) throw new Error('SENTINEL capability evidence gate: no real capability result was received.')
+    if (process.env.VELIKY_MODE === 'chat') return
+    if (process.env.VELIKY_MODE === 'capability') {
+      if (!capabilityEvidence.has(agent)) throw new Error('VELIKY capability evidence gate: no real capability result was received.')
       return
     }
     const events = agent.session.snapshotEvents()
@@ -57,7 +57,7 @@ export function apply(ctx) {
     let report
     try { report = JSON.parse(text) } catch { /* An unstructured answer cannot be independently checked. */ }
     if (!report || stable(report) !== verified.get(agent)) {
-      throw new Error('SENTINEL verification gate: final output must be the exact JSON report returned by a successful verify_evidence call in this turn.')
+      throw new Error('VELIKY verification gate: final output must be the exact JSON report returned by a successful verify_evidence call in this turn.')
     }
   })
 }

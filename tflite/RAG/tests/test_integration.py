@@ -11,19 +11,19 @@ from types import SimpleNamespace
 import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from sentinel_service import BridgeConfig, SentinelService, RAG_DIR, digest
-from sentinel_security import calculate, can_read
-from sentinel_harness import configure, local_url, run_goal
-from sentinel_watcher import detect_anomalies, dispatch
+from veliky_service import BridgeConfig, VelikyService, RAG_DIR, digest
+from veliky_security import calculate, can_read
+from veliky_harness import configure, local_url, run_goal
+from veliky_watcher import detect_anomalies, dispatch
 
 
 @pytest.fixture
 def service(tmp_path):
     vault = tmp_path / 'vault'
-    shutil.copytree(RAG_DIR / 'sentinel_vault', vault)
+    shutil.copytree(RAG_DIR / 'veliky_vault', vault)
     data = tmp_path / 'data'
     shutil.copytree(RAG_DIR / 'data', data)
-    return SentinelService(BridgeConfig(vault_dir=vault, data_dir=data, index_dir=tmp_path/'index',
+    return VelikyService(BridgeConfig(vault_dir=vault, data_dir=data, index_dir=tmp_path/'index',
                                        state_dir=tmp_path/'state', retrieval='vault'))
 
 
@@ -83,7 +83,7 @@ def test_verification_checks_exact_source_and_operands(service):
 
 def test_evidence_survives_restart_but_rechecks_source(service):
     evidence = service.read_vault_note('Pump-P204')
-    restarted = SentinelService(service.cfg)
+    restarted = VelikyService(service.cfg)
     assert restarted.read_document(evidence['evidence_id']) == evidence
     Path(evidence['source']).write_text('---\nclearance_level: restricted\n---\nchanged')
     with pytest.raises(ValueError):
@@ -121,7 +121,7 @@ def test_note_writes_require_trusted_role_and_compare_version(service):
         service.write_vault_note('test','content','')
     cfg = copy.copy(service.cfg)
     cfg.role, cfg.allow_writes = 'engineer', True
-    editor = SentinelService(cfg)
+    editor = VelikyService(cfg)
     result = editor.write_vault_note('case','first','')
     with pytest.raises(ValueError):
         editor.write_vault_note('case','second','')
@@ -163,9 +163,9 @@ def test_generated_patch_matches_actual_harness_rows(tmp_path):
 
 def test_real_mcp_stdio_discovery_retrieval_errors_and_verification(service):
     async def scenario():
-        env = {**os.environ, 'VAULT_DIR':str(service.cfg.vault_dir), 'SENTINEL_DATA_DIR':str(service.cfg.data_dir),
-               'SENTINEL_STATE_DIR':str(service.cfg.state_dir),'SENTINEL_RETRIEVAL':'vault','SENTINEL_ROLE':'analyst'}
-        params = StdioServerParameters(command=sys.executable,args=[str(RAG_DIR/'sentinel_mcp_server.py')],env=env)
+        env = {**os.environ, 'VAULT_DIR':str(service.cfg.vault_dir), 'VELIKY_DATA_DIR':str(service.cfg.data_dir),
+               'VELIKY_STATE_DIR':str(service.cfg.state_dir),'VELIKY_RETRIEVAL':'vault','VELIKY_ROLE':'analyst'}
+        params = StdioServerParameters(command=sys.executable,args=[str(RAG_DIR/'veliky_mcp_server.py')],env=env)
         async with stdio_client(params) as (reader,writer):
             async with ClientSession(reader,writer) as session:
                 await session.initialize()
@@ -189,7 +189,7 @@ def test_sdk_runner_rechecks_final_output_and_logs_failure(service,tmp_path):
     class Harness:
         output = verified
         def __init__(self, **kwargs):
-            assert kwargs['provider'] == 'sentinel-local'
+            assert kwargs['provider'] == 'veliky-local'
         def __enter__(self): return self
         def __exit__(self,*args): pass
         def run(self,prompt,session_id):
@@ -215,12 +215,12 @@ def test_visual_retrieval_enforces_clearance_and_surfaces_failure(monkeypatch):
                      {'id':2,'distance':0.8,'entity':{'chunk':'allowed','clearance_level':'internal'}}]]
     monkeypatch.setattr(rag,'load_visual_embedding_model',lambda:Model())
     index = rag.MilvusIndex(Client(),'dense','visual')
-    result = rag.retrieve('pump',Model(),index,None,[],rag.SENTINELConfig(user_role='analyst'))
+    result = rag.retrieve('pump',Model(),index,None,[],rag.VELIKYConfig(user_role='analyst'))
     assert [item['chunk'] for item in result] == ['allowed']
     def fail(*a,**k): raise RuntimeError('offline')
     monkeypatch.setattr(index.client,'search',fail)
     errors = []
-    assert rag.retrieve('pump',Model(),index,None,[],rag.SENTINELConfig(),diagnostics=errors) == []
+    assert rag.retrieve('pump',Model(),index,None,[],rag.VELIKYConfig(),diagnostics=errors) == []
     assert errors == ['Dense retrieval failed','Visual retrieval failed']
 
 
@@ -236,7 +236,7 @@ def test_missing_hybrid_dependencies_are_explicitly_degraded(service, monkeypatc
 
 
 def test_simulator_trips_only_after_drift(service):
-    from sentinel_simulator import readings, publish
+    from veliky_simulator import readings, publish
     path = service.cfg.data_dir/'simulated_sensor_history.csv'
     # Isolate the synthetic historian from the supplied historical CSV.
     service.cfg.data_dir = service.cfg.state_dir/'demo-data'

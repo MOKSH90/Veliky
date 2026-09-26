@@ -10,9 +10,9 @@ __pycache__
 
 # Node & Frontend
 node_modules
-Sentinel-Web/node_modules
-Sentinel-Web/dist
-Sentinel-Web/.runtime
+Veliky-Web/node_modules
+Veliky-Web/dist
+Veliky-Web/.runtime
 *.tsbuildinfo
 
 # Python Virtual Environments
@@ -22,10 +22,10 @@ venv
 ENV
 
 # Android App
-Sentinel-App/.gradle
-Sentinel-App/build
-Sentinel-App/app/build
-Sentinel-App/.idea
+Veliky-App/.gradle
+Veliky-App/build
+Veliky-App/app/build
+Veliky-App/.idea
 
 # DeepSeek Harness monorepo local builds
 tflite/tools/deepseek-harness/node_modules

@@ -138,7 +138,7 @@ class SelfExtensionPipeline:
                     'args': ['-I', '-c', program], 'output_format': 'json',
                     'output_schema': {'type': ['object', 'array', 'string', 'number', 'boolean', 'null']},
                     'generated': True, 'source_sha256': digest(source)}, schema, 'high', True, False, 10)
-                with tempfile.TemporaryDirectory(prefix='sentinel-candidate-') as folder:
+                with tempfile.TemporaryDirectory(prefix='veliky-candidate-') as folder:
                     config = Path(folder) / 'candidate.json'
                     config.write_text(json.dumps({'capabilities': [asdict(definition)]}))
                     trial_registry = CapabilityRegistry(config)

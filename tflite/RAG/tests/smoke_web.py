@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Boot the real web profile with the SENTINEL overlay and request its built UI."""
+"""Boot the real web profile with the VELIKY overlay and request its built UI."""
 import os
 import re
 import socket
@@ -12,13 +12,13 @@ from urllib.error import URLError
 from urllib.request import build_opener, ProxyHandler, HTTPCookieProcessor
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from sentinel_harness import ROOT, configure
+from veliky_harness import ROOT, configure
 
 
 def main():
-    with tempfile.TemporaryDirectory(prefix='sentinel-web-') as folder:
+    with tempfile.TemporaryDirectory(prefix='veliky-web-') as folder:
         temp = Path(folder)
-        os.environ['SENTINEL_STATE_DIR'] = str(temp/'state')
+        os.environ['VELIKY_STATE_DIR'] = str(temp/'state')
         patch = configure(temp/'patch.yml','http://127.0.0.1:11434/v1','qwen2.5:7b',retrieval='vault')
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0))
@@ -26,7 +26,7 @@ def main():
         with (temp/'web.log').open('w+') as log:
             proc = subprocess.Popen([str(ROOT/'RAG/harness/dsh-source'),'--profile','web','--patch',str(patch),
                                      '--no-open','--host','127.0.0.1','--port',str(port)],
-                env={**os.environ,'DSH_HOME':str(temp/'home'),'DSH_TELEMETRY_DISABLED':'1','SENTINEL_LOCAL_API_KEY':'local-no-auth'},
+                env={**os.environ,'DSH_HOME':str(temp/'home'),'DSH_TELEMETRY_DISABLED':'1','VELIKY_LOCAL_API_KEY':'local-no-auth'},
                 stdout=log,stderr=subprocess.STDOUT)
             try:
                 opener = build_opener(ProxyHandler({}), HTTPCookieProcessor())
@@ -46,7 +46,7 @@ def main():
                             text = response.read().decode()
                             assert response.status == 200 and '<html' in text.lower()
                             assert '/assets/' in text
-                            print('PASS: real SENTINEL web profile serves built UI over loopback')
+                            print('PASS: real VELIKY web profile serves built UI over loopback')
                             return
                     except (URLError, TimeoutError):
                         time.sleep(.5)

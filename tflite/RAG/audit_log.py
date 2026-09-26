@@ -1,4 +1,4 @@
-"""Append-only, fsynced JSONL evidence compatible with SENTINEL's audit chain."""
+"""Append-only, fsynced JSONL evidence compatible with VELIKY's audit chain."""
 from __future__ import annotations
 from datetime import datetime, timezone
 import fcntl
@@ -19,7 +19,7 @@ def digest(value: object) -> str:
 
 
 class AuditLog:
-    """Serialize writers using the same audit.lock as SentinelService."""
+    """Serialize writers using the same audit.lock as VelikyService."""
 
     def __init__(self, path: str | Path):
         self.path = Path(path)

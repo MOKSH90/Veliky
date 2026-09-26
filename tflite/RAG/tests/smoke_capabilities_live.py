@@ -13,7 +13,7 @@ import sys
 import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from audit_log import AuditLog
-from sentinel_harness import configure, run_capability_goal
+from veliky_harness import configure, run_capability_goal
 
 
 def main() -> None:
@@ -30,14 +30,14 @@ def main() -> None:
     inputs = state / 'data/capability_inputs'
     inputs.mkdir(parents=True, exist_ok=True)
     sample = inputs/'sample.txt'
-    sample.write_text('SENTINEL live capability test\nVerified offline execution\n')
-    os.environ.update(SENTINEL_DATA_DIR=str(state/'data'), SENTINEL_STATE_DIR=str(state),
-        SENTINEL_RETRIEVAL='vault', SENTINEL_CAPABILITY_RISK='high', SENTINEL_ALLOW_SELF_EXTENSION='1',
-        SENTINEL_EXTENSION_ENDPOINT=args.endpoint, SENTINEL_EXTENSION_MODEL=args.model)
+    sample.write_text('VELIKY live capability test\nVerified offline execution\n')
+    os.environ.update(VELIKY_DATA_DIR=str(state/'data'), VELIKY_STATE_DIR=str(state),
+        VELIKY_RETRIEVAL='vault', VELIKY_CAPABILITY_RISK='high', VELIKY_ALLOW_SELF_EXTENSION='1',
+        VELIKY_EXTENSION_ENDPOINT=args.endpoint, VELIKY_EXTENSION_MODEL=args.model)
     if args.phase == 'registered':
-        name, data = 'text_search', {'path': str(sample), 'pattern': 'SENTINEL'}
+        name, data = 'text_search', {'path': str(sample), 'pattern': 'VELIKY'}
     else:
-        name, data = 'reverse_text', {'text': 'SENTINEL' if args.phase == 'generate' else 'offline'}
+        name, data = 'reverse_text', {'text': 'VELIKY' if args.phase == 'generate' else 'offline'}
     patch = configure(state / 'live.patch.yml', args.endpoint, args.model, retrieval='vault', mode='capability')
     prompt = f'Call request_capability with capability_name {name} and input_data {json.dumps(data)}.'
     audit_path = state/'audit.jsonl'
@@ -53,7 +53,7 @@ def main() -> None:
     assert AuditLog(audit_path).verify_chain()
     outputs = [item['result'] for item in result['tool_results'] if item['request']['capability_name'] == name]
     if args.phase == 'registered':
-        assert any(item.get('stdout') == '1:SENTINEL live capability test\n' for item in outputs), outputs
+        assert any(item.get('stdout') == '1:VELIKY live capability test\n' for item in outputs), outputs
     elif args.phase == 'reuse':
         assert any(item.get('output') == 'enilffo' for item in outputs), outputs
         assert not any(row.get('action') == 'self_extension' for row in rows), 'Reuse unexpectedly generated code'

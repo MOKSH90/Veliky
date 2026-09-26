@@ -12,9 +12,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from sentinel_harness import ROOT, configure, run_goal
-from sentinel_service import BridgeConfig, SentinelService
-from sentinel_watcher import detect_anomalies, dispatch
+from veliky_harness import ROOT, configure, run_goal
+from veliky_service import BridgeConfig, VelikyService
+from veliky_watcher import detect_anomalies, dispatch
 
 
 class LocalModel(BaseHTTPRequestHandler):
@@ -47,10 +47,10 @@ class LocalModel(BaseHTTPRequestHandler):
         delta = {'role':'assistant'}
         if call:
             delta['tool_calls'] = [{'index':0,'id':f'call-{len(tools)}','type':'function',
-                                   'function':{'name':'mcp__sentinel__'+call[0],'arguments':json.dumps(call[1])}}]
+                                   'function':{'name':'mcp__veliky__'+call[0],'arguments':json.dumps(call[1])}}]
         else:
             delta['content'] = content
-        chunk = {'id':'local-test','object':'chat.completion.chunk','created':1,'model':'sentinel-test',
+        chunk = {'id':'local-test','object':'chat.completion.chunk','created':1,'model':'veliky-test',
                  'choices':[{'index':0,'delta':delta,'finish_reason':None}]}
         finish = {**chunk,'choices':[{'index':0,'delta':{},'finish_reason':'tool_calls' if call else 'stop'}],
                   'usage':{'prompt_tokens':100,'completion_tokens':100,'total_tokens':200}}
@@ -63,18 +63,18 @@ class LocalModel(BaseHTTPRequestHandler):
 
 
 def main():
-    with tempfile.TemporaryDirectory(prefix='sentinel-e2e-') as folder:
+    with tempfile.TemporaryDirectory(prefix='veliky-e2e-') as folder:
         temp = Path(folder)
-        os.environ['SENTINEL_STATE_DIR'] = str(temp/'state')
-        os.environ['SENTINEL_RETRIEVAL'] = 'vault'
+        os.environ['VELIKY_STATE_DIR'] = str(temp/'state')
+        os.environ['VELIKY_RETRIEVAL'] = 'vault'
         server = ThreadingHTTPServer(('127.0.0.1',0),LocalModel)
         thread = threading.Thread(target=server.serve_forever,daemon=True)
         thread.start()
         try:
-            patch = configure(temp/'patch.yml',f'http://127.0.0.1:{server.server_port}/v1','sentinel-test',retrieval='vault')
-            service = SentinelService(BridgeConfig())
+            patch = configure(temp/'patch.yml',f'http://127.0.0.1:{server.server_port}/v1','veliky-test',retrieval='vault')
+            service = VelikyService(BridgeConfig())
             def launch(prompt,session_id=None):
-                return run_goal(prompt,patch=patch,home=temp/'dsh-home',model='sentinel-test',
+                return run_goal(prompt,patch=patch,home=temp/'dsh-home',model='veliky-test',
                     dsh_bin=str(ROOT/'RAG/harness/dsh-source'),session_id=session_id,service=service)
             result = launch('Investigate Pump P-204.')
             assert result['report']['verification']['status'] == 'VERIFIED'

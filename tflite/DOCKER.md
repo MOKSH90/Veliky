@@ -11,11 +11,11 @@ The Reinery container encapsulates the entire sovereign stack in an isolated, re
 ```mermaid
 flowchart TD
     subgraph Host["Host Machine"]
-        V[./RAG/sentinel_vault] -->|Mount| CV[/app/RAG/sentinel_vault]
+        V[./RAG/veliky_vault] -->|Mount| CV[/app/RAG/veliky_vault]
         D[./RAG/data] -->|Mount| CD[/app/RAG/data]
         S[./RAG/state] -->|Mount| CS[/app/RAG/state]
         HFC[reinery_hf_cache Volume] -->|Mount| CHFC[/root/.cache/huggingface]
-        DSH[reinery_dsh_sessions Volume] -->|Mount| CDSH[/app/.sentinel-dsh]
+        DSH[reinery_dsh_sessions Volume] -->|Mount| CDSH[/app/.veliky-dsh]
     end
 
     subgraph Container["Docker Network: reinery_default"]
@@ -28,7 +28,7 @@ flowchart TD
         subgraph CLI["Service: reinery"]
             UI[Interactive CLI Workbench<br/>reinery chat | investigate | rag]
             DSH_CORE[DeepSeek Harness Micro-kernel<br/>Node.js 22 + Cordis Plugin System]
-            MCP[Sentinel FastMCP Bridge<br/>Python 3.11 + Tools]
+            MCP[Veliky FastMCP Bridge<br/>Python 3.11 + Tools]
             RAG_ENG[Tri-Hybrid RAG Engine<br/>BM25 + Dense Vector + Vault Graph]
             VERIF[Independent Deterministic Verifier]
 
@@ -111,7 +111,7 @@ You can also run Reinery as a single self-contained container without Docker Com
 ```bash
 docker run -it --rm \
   -p 8000:8000 \
-  -v "$(pwd)/RAG/sentinel_vault:/app/RAG/sentinel_vault" \
+  -v "$(pwd)/RAG/veliky_vault:/app/RAG/veliky_vault" \
   -v "$(pwd)/RAG/data:/app/RAG/data" \
   -v "$(pwd)/RAG/state:/app/RAG/state" \
   -v "reinery_hf_cache:/root/.cache/huggingface" \
@@ -131,7 +131,7 @@ You can customize the deployment by setting environment variables in `docker-com
 | `ROLE` | `analyst` | Role clearance level (`operator`, `technician`, `analyst`, `safety_officer`) |
 | `RETRIEVAL` | `hybrid` | Retrieval strategy (`hybrid` for BM25+Vector, `vault` for keyword only) |
 | `SERVE_HOST` | `0.0.0.0` | Bind host for local inference server |
-| `DSH_HOME` | `/app/.sentinel-dsh` | DeepSeek Harness state and session storage |
+| `DSH_HOME` | `/app/.veliky-dsh` | DeepSeek Harness state and session storage |
 
 ---
 

@@ -59,7 +59,7 @@ RUN pnpm install --frozen-lockfile && \
 # 6. Copy RAG engine, MCP server, knowledge vault, and unified CLI
 WORKDIR /app
 COPY RAG /app/RAG
-COPY reinery_cli.py reinery docker-entrypoint.sh sentinel.cordis.patch.yml /app/
+COPY reinery_cli.py reinery docker-entrypoint.sh veliky.cordis.patch.yml /app/
 RUN chmod +x /app/reinery /app/docker-entrypoint.sh /app/RAG/harness/dsh-source
 
 # 7. Runtime environment variables
@@ -67,12 +67,12 @@ ENV INFERENCE_ENDPOINT=http://127.0.0.1:8000/v1 \
     MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
     ROLE=analyst \
     RETRIEVAL=hybrid \
-    DSH_HOME=/app/.sentinel-dsh \
+    DSH_HOME=/app/.veliky-dsh \
     SERVE_HOST=0.0.0.0 \
     PYTHONUNBUFFERED=1
 
 # 8. Persistent volume mount points
-VOLUME ["/app/RAG/sentinel_vault", "/app/RAG/data", "/app/RAG/state", "/app/.sentinel-dsh", "/root/.cache/huggingface"]
+VOLUME ["/app/RAG/veliky_vault", "/app/RAG/data", "/app/RAG/state", "/app/.veliky-dsh", "/root/.cache/huggingface"]
 
 # 8000: Model inference API (OpenAI-compatible) | 3000: Harness Web GUI
 EXPOSE 8000 3000

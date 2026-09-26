@@ -1,7 +1,7 @@
 .git
 .gitignore
 .venv
-.sentinel-dsh
+.veliky-dsh
 __pycache__
 *.pyc
 *.pyo

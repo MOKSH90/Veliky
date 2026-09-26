@@ -1,6 +1,6 @@
-# SENTINEL RAG ↔ DeepSeek Harness
+# VELIKY RAG ↔ DeepSeek Harness
 
-SENTINEL uses the checked-in DeepSeek Harness for agent turns, local inference, approval prompts, tool traces and session persistence. Python owns retrieval, the permission-filtered vault graph, sensor history, bounded arithmetic and independent verification. The MCP bridge does not instantiate `SentinelWorkbench` or load its generative model; doing so would duplicate the harness's reasoning loop.
+VELIKY uses the checked-in DeepSeek Harness for agent turns, local inference, approval prompts, tool traces and session persistence. Python owns retrieval, the permission-filtered vault graph, sensor history, bounded arithmetic and independent verification. The MCP bridge does not instantiate `VelikyWorkbench` or load its generative model; doing so would duplicate the harness's reasoning loop.
 
 ```mermaid
 flowchart TD
@@ -8,7 +8,7 @@ flowchart TD
     S[CSV historian / simulator] --> W[Deterministic sensor watcher]
     W -->|same SDK run_goal| H
     H --> L[Local OpenAI-compatible model endpoint]
-    H --> P[SENTINEL tool allowlist and approval hook]
+    H --> P[VELIKY tool allowlist and approval hook]
     P --> M[Official MCP stdio client/server]
     M --> R[Lazy Milvus dense + CLIP + BM25 retrieval]
     M --> V[Vault notes and permission-filtered graph]
@@ -46,18 +46,18 @@ cd ../..
 Start an already provisioned local, tool-capable OpenAI-compatible model server (Ollama or vLLM). Configure the endpoint and exact installed model name:
 
 ```bash
-.venv/bin/python RAG/sentinel_harness.py configure \
+.venv/bin/python RAG/veliky_harness.py configure \
   --endpoint http://127.0.0.1:11434/v1 --model qwen2.5:7b
-.venv/bin/python RAG/sentinel_harness.py doctor
-.venv/bin/python RAG/sentinel_harness.py investigate \
+.venv/bin/python RAG/veliky_harness.py doctor
+.venv/bin/python RAG/veliky_harness.py investigate \
   --dsh-bin "$PWD/RAG/harness/dsh-source" --model qwen2.5:7b
-.venv/bin/python RAG/sentinel_harness.py web \
+.venv/bin/python RAG/veliky_harness.py web \
   --dsh-bin "$PWD/RAG/harness/dsh-source"
 ```
 
-`configure` generates `sentinel.cordis.patch.yml` with absolute paths for this checkout and Python environment. Regenerate after moving the project. It disables the cloud DeepSeek provider, harness telemetry and web search/fetch, registers a local pi-ai route, and mounts the MCP bridge and policy plugin. Use a dedicated `.sentinel-dsh` home; an existing home's user settings can override provider configuration. Local endpoint validation accepts localhost and literal private/loopback IPs and rejects public, unspecified and link-local addresses. Deployment firewall rules remain the authority for network isolation; configuration alone is not a network sandbox.
+`configure` generates `veliky.cordis.patch.yml` with absolute paths for this checkout and Python environment. Regenerate after moving the project. It disables the cloud DeepSeek provider, harness telemetry and web search/fetch, registers a local pi-ai route, and mounts the MCP bridge and policy plugin. Use a dedicated `.veliky-dsh` home; an existing home's user settings can override provider configuration. Local endpoint validation accepts localhost and literal private/loopback IPs and rejects public, unspecified and link-local addresses. Deployment firewall rules remain the authority for network isolation; configuration alone is not a network sandbox.
 
-Local OpenAI-compatible clients require a nonempty authentication value even for unauthenticated servers. The launcher supplies the non-secret `local-no-auth` placeholder; set `SENTINEL_LOCAL_API_KEY` for a local server that requires a real key. The patch references that environment variable without storing its value.
+Local OpenAI-compatible clients require a nonempty authentication value even for unauthenticated servers. The launcher supplies the non-secret `local-no-auth` placeholder; set `VELIKY_LOCAL_API_KEY` for a local server that requires a real key. The patch references that environment variable without storing its value.
 
 The SDK defaults to a five-minute investigation timeout and a two-minute initialization timeout. Errors are logged and raised; an incomplete response is never saved as a completed report. Successful reports are stored under `RAG/state/report-*.json`. Reuse the same configured role and data directories across the MCP process, SDK runner and watcher. Trusted deployment settings are environment variables; models cannot change the role through tool arguments.
 
@@ -70,7 +70,7 @@ Provision retrieval dependencies and cache the embedding/CLIP models before disc
 ```bash
 .venv/bin/pip install -r RAG/requirements.txt
 .venv/bin/python RAG/embeddings.py --domain industrial \
-  --vault-dir "$PWD/RAG/sentinel_vault" --output-dir "$PWD/RAG/index_store" \
+  --vault-dir "$PWD/RAG/veliky_vault" --output-dir "$PWD/RAG/index_store" \
   --spreadsheet "$PWD/RAG/data/pump_p204_vibration_history.csv"
 ```
 
@@ -92,7 +92,7 @@ Ingest additional PDFs with `--pdf /absolute/document.pdf`; optional Docling ext
 | `request_capability(capability_name, input_data)` | Validates and executes registered OS utilities; authorized unknown requests generate sandbox-tested proposals requiring admin approval. |
 | `write_vault_note(note_title, content, expected_sha256)` | Writes only `Investigations/<title>.md`, after harness approval, for engineer/manager/admin roles; rejects stale versions. |
 
-MCP names are `mcp__sentinel__<tool>`. Every executed call is audited. Source role labels follow the original role ladder; `public`, `internal`, `confidential`, and `restricted` map to levels 1, 2, 4, and 6. Unknown roles/labels fail closed. The existing RAG dense, sparse and visual branches all apply the same clearance helper.
+MCP names are `mcp__veliky__<tool>`. Every executed call is audited. Source role labels follow the original role ladder; `public`, `internal`, `confidential`, and `restricted` map to levels 1, 2, 4, and 6. Unknown roles/labels fail closed. The existing RAG dense, sparse and visual branches all apply the same clearance helper.
 
 ## Verification and approval
 
@@ -119,7 +119,7 @@ A successful result returns `report` with a server-generated `verification` sect
 
 Verification proves exact quotations, source-local operand values and arithmetic. It does **not** prove semantic entailment of a free-form executive summary or provide a calibrated confidence score. Conflicting values are detected for evidence items with the same `parameter`, `measurement_time` and `measurement_point`; broad semantic contradiction discovery remains outside this implementation. Human judgment is required for industrial recommendations. The bundled SOP thresholds are demo data, not an independently validated engineering standard.
 
-Reads and calculations run automatically. Writes ask through the real harness approval service; approval displays the exact destination title, content and expected prior hash. Without an answerer, SDK/unattended writes fail closed. A model-supplied `approved=true` cannot grant authority. The server's `SENTINEL_HARNESS_WRITES=1` setting is only for the controlled harness transport; direct MCP launches default to no writes. Only generated investigation notes may be written; original evidence and arbitrary paths are not mutable through the tool. A fresh note uses an empty expected hash; updates use the SHA-256 returned by a fresh note read. A concurrent change requires another read and approval.
+Reads and calculations run automatically. Writes ask through the real harness approval service; approval displays the exact destination title, content and expected prior hash. Without an answerer, SDK/unattended writes fail closed. A model-supplied `approved=true` cannot grant authority. The server's `VELIKY_HARNESS_WRITES=1` setting is only for the controlled harness transport; direct MCP launches default to no writes. Only generated investigation notes may be written; original evidence and arbitrary paths are not mutable through the tool. A fresh note uses an empty expected hash; updates use the SHA-256 returned by a fresh note read. A concurrent change requires another read and approval.
 
 All other model tools—including shell, filesystem export, web access, delegation, code transports and plugin modification—are blocked by a monotonic harness guard. This prevents a model from bypassing retrieval RBAC or editing the approval configuration through another harness tool. The supplied profile is an industrial investigation profile, not a general coding-agent profile. Policy decisions and approval outcomes also remain in harness JSONL sessions.
 
@@ -128,21 +128,21 @@ All other model tools—including shell, filesystem export, web access, delegati
 The watcher reads the same historian adapter as the MCP tool. It checks each measurement point's latest reading against an absolute threshold and the average of the previous N readings, without an LLM. A stable alert ID, transactional claim and persisted status suppress duplicate launches across restarts and concurrent processes. Failed dispatches require `--retry-failed`; a process crash leaving a `running` alert requires operator review before retrying, to avoid duplicating an investigation whose outcome is unknown.
 
 ```bash
-.venv/bin/python RAG/sentinel_watcher.py --dry-run
-.venv/bin/python RAG/sentinel_watcher.py --once \
+.venv/bin/python RAG/veliky_watcher.py --dry-run
+.venv/bin/python RAG/veliky_watcher.py --once \
   --dsh-bin "$PWD/RAG/harness/dsh-source" --model qwen2.5:7b
-.venv/bin/python RAG/sentinel_watcher.py --interval 5 \
+.venv/bin/python RAG/veliky_watcher.py --interval 5 \
   --dsh-bin "$PWD/RAG/harness/dsh-source" --model qwen2.5:7b
 ```
 
-For a visibly changing synthetic historian, set `SENTINEL_DATA_DIR` to an isolated demo directory in both terminals, regenerate the patch with that environment, then run the simulator and watcher together:
+For a visibly changing synthetic historian, set `VELIKY_DATA_DIR` to an isolated demo directory in both terminals, regenerate the patch with that environment, then run the simulator and watcher together:
 
 ```bash
-export SENTINEL_DATA_DIR="$PWD/RAG/state/demo-data"
-.venv/bin/python RAG/sentinel_harness.py configure --model qwen2.5:7b
-.venv/bin/python RAG/sentinel_simulator.py --data-dir "$SENTINEL_DATA_DIR"
-# In a second terminal with the same SENTINEL_DATA_DIR:
-.venv/bin/python RAG/sentinel_watcher.py --dsh-bin "$PWD/RAG/harness/dsh-source"
+export VELIKY_DATA_DIR="$PWD/RAG/state/demo-data"
+.venv/bin/python RAG/veliky_harness.py configure --model qwen2.5:7b
+.venv/bin/python RAG/veliky_simulator.py --data-dir "$VELIKY_DATA_DIR"
+# In a second terminal with the same VELIKY_DATA_DIR:
+.venv/bin/python RAG/veliky_watcher.py --dsh-bin "$PWD/RAG/harness/dsh-source"
 ```
 
 The simulator publishes two assets through atomic CSV replacements: P-204 drifts after five stable samples, while C-104 remains stable. Every row is explicitly labeled synthetic. It does not modify the bundled historical CSV or control equipment. Use the existing harness session trace to inspect the automatically launched investigation; a custom live telemetry dashboard is a separate UI feature.
@@ -161,7 +161,7 @@ node --test RAG/harness/policy.test.mjs
 
 The smoke test runs the real dsh profile, Python SDK, local pi-ai adapter and MCP child process against a scripted loopback SSE model. It tests both typed and sensor-triggered entry points and rejects an altered final report without a cloud API key. The web smoke boots the real web profile and checks that it serves the built UI. It is an integration test, not a model-quality or GPU-capacity benchmark. Subprocess IPC and loopback binding must be available to the test environment.
 
-Runtime state is ignored by Git. The audit is hash-chained and fsynced under file locks, making edits detectable if the trusted chain tip is preserved; it is **not** immutable storage against a host administrator. Production deployment still needs authenticated user-to-role mapping, a separate service identity per trust boundary, encrypted storage, retention policy, network egress controls and off-host/WORM audit anchoring. These are deployment responsibilities, not claims satisfied by a YAML patch. Dedicated three-panel SENTINEL UI/AI Canvas rendering, organization rollups and the architecture's roadmap-only differentiators are not added to the upstream harness.
+Runtime state is ignored by Git. The audit is hash-chained and fsynced under file locks, making edits detectable if the trusted chain tip is preserved; it is **not** immutable storage against a host administrator. Production deployment still needs authenticated user-to-role mapping, a separate service identity per trust boundary, encrypted storage, retention policy, network egress controls and off-host/WORM audit anchoring. These are deployment responsibilities, not claims satisfied by a YAML patch. Dedicated three-panel VELIKY UI/AI Canvas rendering, organization rollups and the architecture's roadmap-only differentiators are not added to the upstream harness.
 
 ## OS capabilities
 

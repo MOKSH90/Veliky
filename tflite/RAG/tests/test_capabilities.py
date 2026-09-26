@@ -39,7 +39,7 @@ def require_sandbox():
 
 def sample_pdf(path):
     """Write a minimal valid PDF with selectable text, no external fixture dependency."""
-    stream = b'BT /F1 18 Tf 40 100 Td (SENTINEL capability test) Tj ET'
+    stream = b'BT /F1 18 Tf 40 100 Td (VELIKY capability test) Tj ET'
     objects = [b'<< /Type /Catalog /Pages 2 0 R >>', b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>', b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>', b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>', b'<< /Length '+str(len(stream)).encode()+b' >>\nstream\n'+stream+b'\nendstream']
     pdf = b'%PDF-1.4\n'
     offsets = [0]
@@ -124,7 +124,7 @@ def test_pdf_real(dispatcher, tmp_path):
     sample_pdf(path)
     result = dispatcher.dispatch('pdf_text_extraction', {'path':str(path)}, context())
     assert result['success'], result
-    assert 'SENTINEL capability test' in result['stdout']
+    assert 'VELIKY capability test' in result['stdout']
     assert dispatcher.audit.verify_chain()
     assert json.loads(dispatcher.audit.path.read_text())['exit_status'] == 0
 
@@ -209,23 +209,23 @@ def test_image_ocr_and_search(dispatcher, tmp_path):
     sample_pdf(pdf)
     result = dispatcher.dispatch('ocr', {'path':str(pdf)}, context())
     assert result['success'], result
-    assert 'SENTINEL' in result['output']['text']
+    assert 'VELIKY' in result['output']['text']
     image = tmp_path/'image.ppm'
     image.write_bytes(b'P6\n2 2\n255\n' + b'\xff\x00\x00' * 4)
     result = dispatcher.dispatch('image_processing', {'path':str(image), 'operation':'-resize', 'value':'4x4'}, context())
     assert result['success'], result
     assert Path(result['output_path']).read_bytes().startswith(b'\x89PNG')
     source = tmp_path/'sample.txt'
-    source.write_text('hello sentinel\n')
-    found = dispatcher.dispatch('text_search', {'path':str(source),'pattern':'sentinel'}, context())
-    assert found['success'] and 'hello sentinel' in found['stdout']
+    source.write_text('hello veliky\n')
+    found = dispatcher.dispatch('text_search', {'path':str(source),'pattern':'veliky'}, context())
+    assert found['success'] and 'hello veliky' in found['stdout']
     empty = dispatcher.dispatch('text_search', {'path':str(source),'pattern':'absent'}, context())
     assert empty['success'] and empty['exit_code'] == 1 and not empty['stdout']
 
 
 def test_service_context_and_shared_audit(tmp_path):
-    from sentinel_service import BridgeConfig, SentinelService
-    service = SentinelService(BridgeConfig(data_dir=tmp_path/'data', state_dir=tmp_path/'state'))
+    from veliky_service import BridgeConfig, VelikyService
+    service = VelikyService(BridgeConfig(data_dir=tmp_path/'data', state_dir=tmp_path/'state'))
     service.audit('test', 'started', {})
     result = service.request_capability('python_exec', {'script':'print(1)'})
     assert result['status'] == 'denied'

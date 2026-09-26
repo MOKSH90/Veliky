@@ -1,0 +1,11 @@
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const bundled=path.resolve(root,'../tflite/.venv/bin/python');
+const python=process.env.VELIKY_PYTHON || (existsSync(bundled)?bundled:'python3');
+const proc=spawn(python,[path.join(root,'server/gateway.py'),...process.argv.slice(2)],{cwd:root,stdio:'inherit',env:{...process.env,HF_HUB_OFFLINE:'1',TRANSFORMERS_OFFLINE:'1',HF_HUB_DISABLE_TELEMETRY:'1',PYTHONDONTWRITEBYTECODE:'1'}});
+proc.on('error',e=>{console.error('Could not start Veliky gateway:',e.message);process.exitCode=1});
+proc.on('exit',code=>{process.exitCode=code??1});
+for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>proc.kill(signal));

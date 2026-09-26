@@ -1,6 +1,6 @@
 # OS Capability Registry
 
-Agent utility requests enter `mcp__sentinel__request_capability` with
+Agent utility requests enter `mcp__veliky__request_capability` with
 `{"capability_name":"pdf_text_extraction","input_data":{"path":"/absolute/path/sample.pdf"}}`.
 The MCP adapter creates identity and permissions on the host; agents cannot submit
 risk permissions, session IDs, network grants, executables, or command-line options.
@@ -20,8 +20,8 @@ and use `pip install --no-index --find-links /media/wheels -r requirements-harne
 No execution path downloads packages, models, schemas or language data.
 
 The service loads `capabilities.yaml` at startup. Place approved input files in
-`SENTINEL_DATA_DIR/capability_inputs/` (create this directory when provisioning).
-Artifacts persist in `SENTINEL_STATE_DIR/capability_outputs/`. The default MCP adapter
+`VELIKY_DATA_DIR/capability_inputs/` (create this directory when provisioning).
+Artifacts persist in `VELIKY_STATE_DIR/capability_outputs/`. The default MCP adapter
 permits low risk only and no network. `image_processing` (medium) and `python_exec`
 (high) are denied there; a trusted application may instantiate the dispatcher with
 explicitly authorized context. Do not expose that context as an agent tool parameter.
@@ -40,10 +40,10 @@ from sandbox_executor import SandboxExecutor
 registry = CapabilityRegistry()
 dispatcher = CapabilityDispatcher(
     registry, PolicyEngine(),
-    SandboxExecutor(registry, [Path('/srv/sentinel/inputs')], Path('/srv/sentinel/outputs')),
-    AuditLog('/srv/sentinel/state/audit.jsonl'),
+    SandboxExecutor(registry, [Path('/srv/veliky/inputs')], Path('/srv/veliky/outputs')),
+    AuditLog('/srv/veliky/state/audit.jsonl'),
 )
-result = dispatcher.dispatch('pdf_text_extraction', {'path': '/srv/sentinel/inputs/sample.pdf'},
+result = dispatcher.dispatch('pdf_text_extraction', {'path': '/srv/veliky/inputs/sample.pdf'},
                              {'session_id': 'authenticated-session', 'allowed_risk_level': 'low',
                               'network_allowed': False,
                               'allowed_capabilities': ['pdf_text_extraction']})
@@ -157,13 +157,13 @@ review semantics and edge cases before approving.
 Enable generation only in a trusted host environment:
 
 ```bash
-export SENTINEL_EXTENSION_ENDPOINT=http://127.0.0.1:18080/v1
-export SENTINEL_EXTENSION_MODEL=Qwen/Qwen2.5-0.5B-Instruct
-export SENTINEL_ALLOW_SELF_EXTENSION=1
-export SENTINEL_CAPABILITY_RISK=high
+export VELIKY_EXTENSION_ENDPOINT=http://127.0.0.1:18080/v1
+export VELIKY_EXTENSION_MODEL=Qwen/Qwen2.5-0.5B-Instruct
+export VELIKY_ALLOW_SELF_EXTENSION=1
+export VELIKY_CAPABILITY_RISK=high
 ```
 
-These variables are propagated to MCP by `sentinel_harness.configure`; they are
+These variables are propagated to MCP by `veliky_harness.configure`; they are
 never accepted as tool arguments. The model endpoint must use a numeric loopback
 HTTP address. Proxy environment variables and redirects are disabled in the
 client. Inference uses the local model server, while generated code has no network.
@@ -209,7 +209,7 @@ in this checkout's `tflite/.venv`. No model weights need downloading.
 From `tflite`, with the appropriate inference Python:
 
 ```bash
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 /path/to/inference/python RAG/sentinel_llm_server.py \
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 /path/to/inference/python RAG/veliky_llm_server.py \
   --model Qwen/Qwen2.5-0.5B-Instruct --port 18080 --device cpu --dtype float32
 .venv/bin/python RAG/capability_doctor.py
 ```
@@ -225,8 +225,8 @@ models. Its completion gate refuses a turn that claims execution without receivi
 a real tool result. It leaves the existing investigation verification gate intact:
 
 ```bash
-.venv/bin/python RAG/sentinel_harness.py capability \
-  'Call request_capability with capability_name text_search and input_data {"path":"/absolute/approved/file.txt","pattern":"SENTINEL"}.' \
+.venv/bin/python RAG/veliky_harness.py capability \
+  'Call request_capability with capability_name text_search and input_data {"path":"/absolute/approved/file.txt","pattern":"VELIKY"}.' \
   --endpoint http://127.0.0.1:18080/v1 --model Qwen/Qwen2.5-0.5B-Instruct \
   --dsh-bin /path/to/installed/dsh --patch /tmp/capability.patch.yml --retrieval vault
 ```

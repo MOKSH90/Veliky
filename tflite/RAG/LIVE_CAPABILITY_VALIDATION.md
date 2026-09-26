@@ -24,9 +24,9 @@ human approval of the exact proposal below; it has not been silently authorized.
 | Registry, sandbox, policy, audit, approval lifecycle, existing MCP regressions | 67 Python tests passed |
 | Harness policy, including rejecting completion without tool evidence | Passed |
 | Real model → DeepSeek Harness → MCP → registered `text_search` → Bubblewrap | Passed; latest run 42.01 seconds |
-| Exact stdout from registered tool | `1:SENTINEL live capability test` |
+| Exact stdout from registered tool | `1:VELIKY live capability test` |
 | Real model → harness → unknown `reverse_text` → local model generation → sandbox → approval gate | Passed; 43.98 seconds |
-| Generated source result | `SENTINEL` → `LENITNES`, exit 0, Bubblewrap |
+| Generated source result | `VELIKY` → `LENITNES`, exit 0, Bubblewrap |
 | Human approval → persistent registration → real-model reuse | Awaiting approval |
 | Audit-chain verification | Passed |
 

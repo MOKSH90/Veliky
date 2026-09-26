@@ -112,7 +112,7 @@ def test_generated_registry_cannot_replace_seed(pipeline):
 
 
 def test_admin_not_exposed_as_mcp_tool():
-    from sentinel_service import TOOL_NAMES
+    from veliky_service import TOOL_NAMES
     assert 'request_capability' in TOOL_NAMES
     assert not any(word in name for name in TOOL_NAMES for word in ('approve','decide','revoke','register'))
 
@@ -131,10 +131,10 @@ def test_expired_approval_is_denied(pipeline):
 
 
 def test_capability_runner_returns_actual_tool_output(monkeypatch, tmp_path):
-    import sentinel_harness
+    import veliky_harness
     from types import SimpleNamespace
     events = [
-        {'type':'tool/call','data':{'callId':'one','name':'mcp__sentinel__request_capability',
+        {'type':'tool/call','data':{'callId':'one','name':'mcp__veliky__request_capability',
          'arguments':json.dumps({'capability_name':'text_search','input_data':{}})}},
         {'type':'tool/result','data':{'message':{'content':[{'type':'tool-result','toolCallId':'one',
          'content':[{'type':'text','text':json.dumps({'success':True,'status':'succeeded','stdout':'actual output'})}]}]}}}]
@@ -144,8 +144,8 @@ def test_capability_runner_returns_actual_tool_output(monkeypatch, tmp_path):
         def __exit__(self, *args): pass
         def run(self, prompt):
             return SimpleNamespace(finish_reason='completed',session_id='test',events=events,final_response='imprecise model prose')
-    monkeypatch.setattr(sentinel_harness,'sdk_class',lambda: Harness)
-    result = sentinel_harness.run_capability_goal('test',patch=tmp_path/'patch',home=tmp_path,model='fixture',dsh_bin='fixture')
+    monkeypatch.setattr(veliky_harness,'sdk_class',lambda: Harness)
+    result = veliky_harness.run_capability_goal('test',patch=tmp_path/'patch',home=tmp_path,model='fixture',dsh_bin='fixture')
     assert result['tool_results'][0]['result']['stdout'] == 'actual output'
     assert 'actual output' in result['final_response']
     assert result['model_response'] == 'imprecise model prose'

@@ -14,12 +14,12 @@ import subprocess
 import argparse
 from pathlib import Path
 
-# Auto-switch to virtual environment containing Sentinel dependencies
+# Auto-switch to virtual environment containing Veliky dependencies
 if sys.prefix == sys.base_prefix:
     candidate_venvs = [
         Path(__file__).resolve().parent / ".venv/bin/python",
         Path(__file__).resolve().parent.parent / "tflite/.venv/bin/python",
-        Path.home() / "Projects/Tflite/Sentinel/tflite/.venv/bin/python",
+        Path.home() / "Projects/Tflite/Veliky/tflite/.venv/bin/python",
         Path.home() / "tflite/.venv/bin/python",
         Path("/opt/venv/bin/python"),
     ]
@@ -51,9 +51,9 @@ for log_name in (
     "transformers",
     "faiss",
     "milvus_lite",
-    "sentinel",
-    "sentinel.workbench",
-    "sentinel.ingest",
+    "veliky",
+    "veliky.workbench",
+    "veliky.ingest",
     "httpx",
     "urllib3",
 ):
@@ -73,10 +73,10 @@ for rag_dir in candidate_rag_dirs:
         break
 
 try:
-    from sentinel_security import calculate
-    from sentinel_service import SentinelService
+    from veliky_security import calculate
+    from veliky_service import VelikyService
 except ImportError:
-    SentinelService = None
+    VelikyService = None
 
 try:
     from rich.console import Console
@@ -155,7 +155,7 @@ if _PROMPT_TOOLKIT_AVAILABLE:
                     "/tools": "List active tools & security permissions",
                     "/clear": "Reset conversation memory session",
                     "/help": "Display command menu and help",
-                    "/exit": "Exit SENTINEL CLI session",
+                    "/exit": "Exit VELIKY CLI session",
                 }
                 for cmd, desc in commands.items():
                     if cmd.startswith(text):
@@ -168,7 +168,7 @@ class DeepSeekCLI:
         self.agent = agent
         self.thinking = thinking
         self.history: list[dict] = []
-        self.service = SentinelService() if SentinelService else None
+        self.service = VelikyService() if VelikyService else None
         self._llm = None
         self._tokenizer = None
 
@@ -185,7 +185,7 @@ class DeepSeekCLI:
 """
         print(banner)
         print("\033[1;36m" + "─" * 78 + "\033[0m")
-        print("\033[1;32m  🛡️ SENTINEL Sovereign Agentic AI Workbench\033[0m")
+        print("\033[1;32m  🛡️ VELIKY Sovereign Agentic AI Workbench\033[0m")
         print("\033[1;34m  Model    :\033[0m " + self.model)
         print("\033[1;34m  Agent    :\033[0m " + f"{self.agent.upper()} ({AGENTS.get(self.agent, '')})")
         print("\033[1;34m  Thinking :\033[0m " + ("\033[1;32mON\033[0m" if self.thinking else "\033[1;31mOFF\033[0m"))
@@ -201,7 +201,7 @@ class DeepSeekCLI:
         print("  \033[1;36m/tools\033[0m           List active agent tools and capability permissions")
         print("  \033[1;36m/clear\033[0m           Reset conversation session and memory")
         print("  \033[1;36m/help\033[0m            Display this menu")
-        print("  \033[1;36m/exit\033[0m            Exit SENTINEL CLI session\n")
+        print("  \033[1;36m/exit\033[0m            Exit VELIKY CLI session\n")
 
     def show_tools(self):
         print("\n\033[1;33mRegistered Agent Tools & Capabilities:\033[0m")
@@ -232,9 +232,9 @@ class DeepSeekCLI:
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(content.strip(), encoding="utf-8")
                 written_files.add(str(p))
-                print(f"\033[1;32m  📁 [SENTINEL File Tool] Created file:\033[0m {p} ({len(content)} bytes)")
+                print(f"\033[1;32m  📁 [VELIKY File Tool] Created file:\033[0m {p} ({len(content)} bytes)")
             except Exception as exc:
-                print(f"\033[1;31m  ❌ [SENTINEL File Tool Error] Failed to write {filepath}: {exc}\033[0m")
+                print(f"\033[1;31m  ❌ [VELIKY File Tool Error] Failed to write {filepath}: {exc}\033[0m")
 
         # 2. Match markdown ### File: filepath \n ```lang \n content \n ```
         md_matches = re.findall(r'###\s+File:\s*([^\n]+)\s*\n```[a-zA-Z0-9_-]*\s*\n([\s\S]*?)\n```', response)
@@ -244,9 +244,9 @@ class DeepSeekCLI:
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(content, encoding="utf-8")
                 written_files.add(str(p))
-                print(f"\033[1;32m  📁 [SENTINEL File Tool] Created file:\033[0m {p} ({len(content)} bytes)")
+                print(f"\033[1;32m  📁 [VELIKY File Tool] Created file:\033[0m {p} ({len(content)} bytes)")
             except Exception as exc:
-                print(f"\033[1;31m  ❌ [SENTINEL File Tool Error] Failed to write {raw_path}: {exc}\033[0m")
+                print(f"\033[1;31m  ❌ [VELIKY File Tool Error] Failed to write {raw_path}: {exc}\033[0m")
 
         # 3. Fallback: If prompt explicitly asks to create/write/save a file (e.g. "create a python file named 2.py")
         if not written_files:
@@ -263,9 +263,9 @@ class DeepSeekCLI:
                         p.parent.mkdir(parents=True, exist_ok=True)
                         p.write_text(code_content, encoding="utf-8")
                         written_files.add(str(p))
-                        print(f"\033[1;32m  📁 [SENTINEL File Tool] Automatically created file:\033[0m {p} ({len(code_content)} bytes)")
+                        print(f"\033[1;32m  📁 [VELIKY File Tool] Automatically created file:\033[0m {p} ({len(code_content)} bytes)")
                     except Exception as exc:
-                        print(f"\033[1;31m  ❌ [SENTINEL File Tool Error] Failed to write {target_filename}: {exc}\033[0m")
+                        print(f"\033[1;31m  ❌ [VELIKY File Tool Error] Failed to write {target_filename}: {exc}\033[0m")
 
         # 4. Match <run_cmd>cmd</run_cmd>
         cmd_matches = re.findall(r'<run_cmd>([\s\S]*?)</run_cmd>', response)
@@ -273,13 +273,13 @@ class DeepSeekCLI:
             cmd_str = cmd.strip()
             if cmd_str:
                 try:
-                    print(f"\033[1;33m  ⚡ [SENTINEL Shell Tool] Executing command:\033[0m {cmd_str}")
+                    print(f"\033[1;33m  ⚡ [VELIKY Shell Tool] Executing command:\033[0m {cmd_str}")
                     res = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=30)
                     out = res.stdout if res.stdout else res.stderr
                     if out.strip():
                         print(f"\033[90m{out.strip()}\033[0m")
                 except Exception as exc:
-                    print(f"\033[1;31m  ❌ [SENTINEL Shell Tool Error] {exc}\033[0m")
+                    print(f"\033[1;31m  ❌ [VELIKY Shell Tool Error] {exc}\033[0m")
 
     def load_model_if_needed(self):
         if self._llm is not None:
@@ -331,7 +331,7 @@ class DeepSeekCLI:
                 import torch
                 device = next(self._llm.parameters()).device
                 system_prompt = (
-                    f"You are SENTINEL Sovereign Agent, an elite autonomous systems engineer and reliability investigator running in {self.agent} mode.\n"
+                    f"You are VELIKY Sovereign Agent, an elite autonomous systems engineer and reliability investigator running in {self.agent} mode.\n"
                     "You embody the directness, craftsmanship, and precision of Claude Code.\n\n"
                     "CORE DIRECTIVES:\n"
                     "1. Direct & High-Signal: Begin answers immediately without conversational filler, greetings, or apologies.\n"
@@ -359,7 +359,7 @@ class DeepSeekCLI:
                 in_len = inputs["input_ids"].shape[1]
                 response = self._tokenizer.decode(outputs[0][in_len:], skip_special_tokens=True).strip()
             else:
-                response = f"SENTINEL Agent ({self.agent} mode): Processed request '{user_input}'."
+                response = f"VELIKY Agent ({self.agent} mode): Processed request '{user_input}'."
 
         if self.thinking and _rich_console:
             with _rich_console.status("[magenta]thinking...[/magenta]", spinner="dots"):
@@ -371,7 +371,7 @@ class DeepSeekCLI:
             _do_generate()
 
         elapsed = time.time() - t0
-        print(f"\n\033[1;32mSENTINEL Agent\033[0m \033[90m({elapsed:.2f}s)\033[0m:")
+        print(f"\n\033[1;32mVELIKY Agent\033[0m \033[90m({elapsed:.2f}s)\033[0m:")
         if _rich_console:
             _rich_console.print(Markdown(response))
         else:
@@ -405,20 +405,20 @@ class DeepSeekCLI:
 
         while True:
             try:
-                prompt_str = f"\033[1;34msentinel ({self.agent})\033[0m > "
+                prompt_str = f"\033[1;34mveliky ({self.agent})\033[0m > "
                 if session:
                     user_input = session.prompt(ANSI(prompt_str)).strip()
                 else:
                     user_input = input(prompt_str).strip()
             except (KeyboardInterrupt, EOFError):
-                print("\nExiting SENTINEL CLI. Goodbye!")
+                print("\nExiting VELIKY CLI. Goodbye!")
                 break
 
             if not user_input:
                 continue
 
             if user_input.lower() in ("exit", "quit", "/exit", "/quit"):
-                print("Exiting SENTINEL CLI. Goodbye!")
+                print("Exiting VELIKY CLI. Goodbye!")
                 break
 
             if user_input.startswith("/model"):
@@ -482,7 +482,7 @@ class DeepSeekCLI:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SENTINEL Agent CLI")
+    parser = argparse.ArgumentParser(description="VELIKY Agent CLI")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Initial model name")
     parser.add_argument("--agent", default="general", choices=tuple(AGENTS.keys()), help="Initial agent preset")
     parser.add_argument("--no-thinking", action="store_true", help="Disable thinking mode by default")

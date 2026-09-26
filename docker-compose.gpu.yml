@@ -1,5 +1,5 @@
 # ==============================================================================
-# SENTINEL — NVIDIA GPU Acceleration Override
+# VELIKY — NVIDIA GPU Acceleration Override
 # Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
 # ==============================================================================
 

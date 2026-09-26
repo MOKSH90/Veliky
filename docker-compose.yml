@@ -1,5 +1,5 @@
 # ==============================================================================
-# SENTINEL — Sovereign Autonomous Agentic AI Workbench
+# VELIKY — Sovereign Autonomous Agentic AI Workbench
 # Complete Multi-Service Container Orchestration
 # ==============================================================================
 
@@ -12,8 +12,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.model
-    image: sentinel-model-server:latest
-    container_name: sentinel-model-server
+    image: veliky-model-server:latest
+    container_name: veliky-model-server
     environment:
       - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
       - SERVE_HOST=0.0.0.0
@@ -23,7 +23,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - sentinel_hf_cache:/root/.cache/huggingface
+      - veliky_hf_cache:/root/.cache/huggingface
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/health || exit 1"]
       interval: 10s
@@ -32,48 +32,48 @@ services:
       start_period: 20s
     restart: unless-stopped
     networks:
-      - sentinel-net
+      - veliky-net
 
   # ============================================================================
   # 2. Sovereign Gateway & Execution Sandbox Service
   # FastMCP Bridge, Bubblewrap Sandbox, Obsidian Vault, and Policy Gate
   # ============================================================================
-  sentinel-gateway:
+  veliky-gateway:
     build:
       context: .
       dockerfile: docker/Dockerfile.gateway
-    image: sentinel-gateway:latest
-    container_name: sentinel-gateway
+    image: veliky-gateway:latest
+    container_name: veliky-gateway
     cap_add:
       - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
     environment:
-      - SENTINEL_GATEWAY_HOST=0.0.0.0
-      - SENTINEL_GATEWAY_PORT=8766
-      - SENTINEL_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,sentinel-gateway,sentinel-web,model-server
-      - SENTINEL_ALLOW_ALL_HOSTS=1
+      - VELIKY_GATEWAY_HOST=0.0.0.0
+      - VELIKY_GATEWAY_PORT=8766
+      - VELIKY_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,veliky-gateway,veliky-web,model-server
+      - VELIKY_ALLOW_ALL_HOSTS=1
       - INFERENCE_ENDPOINT=http://model-server:8000/v1
-      - SENTINEL_REASONING_ENDPOINT=http://model-server:8000/v1
-      - SENTINEL_REASONING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
-      - SENTINEL_CODING_ENDPOINT=http://model-server:8000/v1
-      - SENTINEL_CODING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
-      - SENTINEL_VISION_ENDPOINT=http://model-server:8000/v1
-      - SENTINEL_VISION_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - VELIKY_REASONING_ENDPOINT=http://model-server:8000/v1
+      - VELIKY_REASONING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - VELIKY_CODING_ENDPOINT=http://model-server:8000/v1
+      - VELIKY_CODING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+      - VELIKY_VISION_ENDPOINT=http://model-server:8000/v1
+      - VELIKY_VISION_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
       - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
-      - SENTINEL_RAG_DIR=/app/tflite/RAG
-      - VAULT_DIR=/app/tflite/sentinel_vault
-      - SENTINEL_STATE_DIR=/app/tflite/RAG/state
-      - SENTINEL_DATA_DIR=/app/tflite/RAG/data
-      - SENTINEL_ROLE=admin
-      - SENTINEL_HARNESS_WRITES=1
+      - VELIKY_RAG_DIR=/app/tflite/RAG
+      - VAULT_DIR=/app/tflite/veliky_vault
+      - VELIKY_STATE_DIR=/app/tflite/RAG/state
+      - VELIKY_DATA_DIR=/app/tflite/RAG/data
+      - VELIKY_ROLE=admin
+      - VELIKY_HARNESS_WRITES=1
       - PYTHONUNBUFFERED=1
     ports:
       - "8766:8766"
     volumes:
-      - ./tflite/sentinel_vault:/app/tflite/sentinel_vault
-      - sentinel_state:/app/tflite/RAG/state
-      - sentinel_data:/app/tflite/RAG/data
+      - ./tflite/veliky_vault:/app/tflite/veliky_vault
+      - veliky_state:/app/tflite/RAG/state
+      - veliky_data:/app/tflite/RAG/data
     depends_on:
       model-server:
         condition: service_started
@@ -85,23 +85,23 @@ services:
       start_period: 5s
     restart: unless-stopped
     networks:
-      - sentinel-net
+      - veliky-net
 
   # ============================================================================
-  # 3. Sentinel Web UI & Sovereign SOC Console
+  # 3. Veliky Web UI & Sovereign SOC Console
   # High-performance Nginx serving Vite React SPA with integrated API/LLM routing
   # ============================================================================
-  sentinel-web:
+  veliky-web:
     build:
-      context: ./Sentinel-Web
+      context: ./Veliky-Web
       dockerfile: Dockerfile
-    image: sentinel-web:latest
-    container_name: sentinel-web
+    image: veliky-web:latest
+    container_name: veliky-web
     ports:
       - "3000:80"
       - "5173:80"
     depends_on:
-      sentinel-gateway:
+      veliky-gateway:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
@@ -110,17 +110,17 @@ services:
       retries: 3
     restart: unless-stopped
     networks:
-      - sentinel-net
+      - veliky-net
 
   # ============================================================================
   # 4. Interactive Agent Terminal CLI
-  # Usage: docker compose run --rm sentinel-cli chat
-  #        docker compose run --rm sentinel-cli investigate "Analyze Pump P-204"
-  #        docker compose run --rm sentinel-cli doctor
+  # Usage: docker compose run --rm veliky-cli chat
+  #        docker compose run --rm veliky-cli investigate "Analyze Pump P-204"
+  #        docker compose run --rm veliky-cli doctor
   # ============================================================================
-  sentinel-cli:
-    image: sentinel-gateway:latest
-    container_name: sentinel-cli
+  veliky-cli:
+    image: veliky-gateway:latest
+    container_name: veliky-cli
     stdin_open: true
     tty: true
     cap_add:
@@ -128,14 +128,14 @@ services:
     environment:
       - INFERENCE_ENDPOINT=http://model-server:8000/v1
       - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
-      - SENTINEL_ROLE=admin
-      - SENTINEL_RAG_DIR=/app/tflite/RAG
-      - VAULT_DIR=/app/tflite/sentinel_vault
+      - VELIKY_ROLE=admin
+      - VELIKY_RAG_DIR=/app/tflite/RAG
+      - VAULT_DIR=/app/tflite/veliky_vault
     volumes:
-      - ./tflite/sentinel_vault:/app/tflite/sentinel_vault
-      - sentinel_state:/app/tflite/RAG/state
-      - sentinel_data:/app/tflite/RAG/data
-      - sentinel_hf_cache:/root/.cache/huggingface
+      - ./tflite/veliky_vault:/app/tflite/veliky_vault
+      - veliky_state:/app/tflite/RAG/state
+      - veliky_data:/app/tflite/RAG/data
+      - veliky_hf_cache:/root/.cache/huggingface
     depends_on:
       model-server:
         condition: service_healthy
@@ -143,47 +143,47 @@ services:
     profiles:
       - cli
     networks:
-      - sentinel-net
+      - veliky-net
 
   # ============================================================================
   # 5. Autonomous Telemetry Watcher Daemon (Optional)
   # Launch with: docker compose --profile watcher up -d
   # ============================================================================
   watcher:
-    image: sentinel-gateway:latest
-    container_name: sentinel-watcher
+    image: veliky-gateway:latest
+    container_name: veliky-watcher
     environment:
       - INFERENCE_ENDPOINT=http://model-server:8000/v1
       - MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
-      - SENTINEL_ROLE=admin
-      - SENTINEL_RAG_DIR=/app/tflite/RAG
-      - VAULT_DIR=/app/tflite/sentinel_vault
+      - VELIKY_ROLE=admin
+      - VELIKY_RAG_DIR=/app/tflite/RAG
+      - VAULT_DIR=/app/tflite/veliky_vault
     volumes:
-      - ./tflite/sentinel_vault:/app/tflite/sentinel_vault
-      - sentinel_state:/app/tflite/RAG/state
-      - sentinel_data:/app/tflite/RAG/data
+      - ./tflite/veliky_vault:/app/tflite/veliky_vault
+      - veliky_state:/app/tflite/RAG/state
+      - veliky_data:/app/tflite/RAG/data
     depends_on:
       model-server:
         condition: service_healthy
-    command: ["python3", "/app/tflite/RAG/sentinel_watcher.py"]
+    command: ["python3", "/app/tflite/RAG/veliky_watcher.py"]
     profiles:
       - watcher
     restart: unless-stopped
     networks:
-      - sentinel-net
+      - veliky-net
 
 volumes:
   # Persistent cache for Hugging Face model weights
-  sentinel_hf_cache:
-    name: sentinel_hf_cache
+  veliky_hf_cache:
+    name: veliky_hf_cache
   # Persistent runtime state
-  sentinel_state:
-    name: sentinel_state
+  veliky_state:
+    name: veliky_state
   # Persistent data store
-  sentinel_data:
-    name: sentinel_data
+  veliky_data:
+    name: veliky_data
 
 networks:
-  sentinel-net:
+  veliky-net:
     driver: bridge
-    name: sentinel-net
+    name: veliky-net

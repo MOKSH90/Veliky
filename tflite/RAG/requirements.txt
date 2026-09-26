@@ -1,4 +1,4 @@
-# SENTINEL — Sovereign On-Premise Industrial AI Workbench Dependencies
+# VELIKY — Sovereign On-Premise Industrial AI Workbench Dependencies
 # Core ML & Inference
 torch>=2.2.0
 transformers>=4.40.0

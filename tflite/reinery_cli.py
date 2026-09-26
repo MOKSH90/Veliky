@@ -35,7 +35,7 @@ from rich.table import Table
 
 console = Console()
 
-SENTINEL_BANNER = """[bold white]  ███████   [/bold white][bold cyan]████████[/bold cyan][bold white]   ███    ██  ████████  ██  ███    ██  ████████  ██      [/bold white]
+VELIKY_BANNER = """[bold white]  ███████   [/bold white][bold cyan]████████[/bold cyan][bold white]   ███    ██  ████████  ██  ███    ██  ████████  ██      [/bold white]
 [bold white] ██▀        [/bold white][bold cyan] ▀▀▀▀▀▀ [/bold cyan][bold white]   ████   ██     ██     ██  ████   ██  ██       ██      [/bold white]
 [bold white] ▀███████   [/bold white][bold cyan]████████[/bold cyan][bold white]   ██ ██  ██     ██     ██  ██ ██  ██  ███████  ██      [/bold white]
 [bold white]      ▄██   [/bold white][bold cyan] ▄▄▄▄▄▄ [/bold cyan][bold white]   ██  ██ ██     ██     ██  ██  ██ ██  ██       ██      [/bold white]
@@ -43,8 +43,8 @@ SENTINEL_BANNER = """[bold white]  ███████   [/bold white][bold cy
 
 
 def ensure_patch(endpoint: str, model: str, role: str = "analyst", retrieval: str = "hybrid", mode: str = "investigate") -> Path:
-    from sentinel_harness import configure
-    patch_path = ROOT / "sentinel.cordis.patch.yml"
+    from veliky_harness import configure
+    patch_path = ROOT / "veliky.cordis.patch.yml"
     python_bin = ROOT / ".venv/bin/python"
     if not python_bin.exists() and Path("/opt/venv/bin/python").exists():
         python_bin = Path("/opt/venv/bin/python")
@@ -83,13 +83,13 @@ def cmd_agent(args: argparse.Namespace):
 
 def cmd_chat(args: argparse.Namespace):
     from deepseek_harness import DeepSeekHarness
-    from sentinel_service import BridgeConfig, SentinelService
+    from veliky_service import BridgeConfig, VelikyService
 
     console.print()
-    console.print(SENTINEL_BANNER)
+    console.print(VELIKY_BANNER)
     console.print("[bold cyan]" + "─" * 78 + "[/bold cyan]")
     console.print(Panel.fit(
-        "[bold cyan]SENTINEL[/bold cyan] — [bold white]Sovereign Agentic AI Workbench[/bold white]\n"
+        "[bold cyan]VELIKY[/bold cyan] — [bold white]Sovereign Agentic AI Workbench[/bold white]\n"
         f"[dim]Model: [green]{args.model}[/green] | Endpoint: [green]{args.endpoint}[/green] | Role: [yellow]{args.role}[/yellow][/dim]\n"
         "[dim]Type [bold]/help[/bold] for commands or [bold]exit[/bold] to quit.[/dim]",
         border_style="cyan",
@@ -103,22 +103,22 @@ def cmd_chat(args: argparse.Namespace):
 
     patch_path = ensure_patch(args.endpoint, args.model, role=args.role, retrieval=args.retrieval, mode="chat")
     dsh_bin = str(ROOT / "RAG/harness/dsh-source")
-    service = SentinelService(BridgeConfig(role=args.role, retrieval=args.retrieval))
+    service = VelikyService(BridgeConfig(role=args.role, retrieval=args.retrieval))
 
     dsh_env = {
         **os.environ,
         "DSH_TELEMETRY_DISABLED": "1",
-        "SENTINEL_LOCAL_API_KEY": os.environ.get("SENTINEL_LOCAL_API_KEY", "local-no-auth"),
-        "SENTINEL_MODE": "chat",
+        "VELIKY_LOCAL_API_KEY": os.environ.get("VELIKY_LOCAL_API_KEY", "local-no-auth"),
+        "VELIKY_MODE": "chat",
     }
 
     console.print("[dim]Initializing agent harness & mounting RAG MCP tools...[/dim]")
     try:
         harness = DeepSeekHarness(
-            dsh_home=str(ROOT / ".sentinel-dsh"),
+            dsh_home=str(ROOT / ".veliky-dsh"),
             cwd=str(ROOT),
             patches=(str(patch_path),),
-            provider="sentinel-local",
+            provider="veliky-local",
             model=args.model,
             dsh_bin=dsh_bin,
             env=dsh_env,
@@ -200,7 +200,7 @@ def cmd_chat(args: argparse.Namespace):
 
             if user_input.startswith("/calc "):
                 formula = user_input[6:].strip()
-                from sentinel_security import calculate
+                from veliky_security import calculate
                 try:
                     res = calculate(formula, {})
                     console.print(f"[bold green]Result:[/bold green] {res}\n")
@@ -220,7 +220,7 @@ def cmd_chat(args: argparse.Namespace):
                     etype = event.get("type")
                     if etype == "tool/call":
                         data = event.get("data", {})
-                        tname = data.get("name", "").replace("mcp__sentinel__", "")
+                        tname = data.get("name", "").replace("mcp__veliky__", "")
                         args_str = data.get("arguments", "")
                         console.print(f"[bold yellow]⚙ Executing tool:[/bold yellow] [bold white]{tname}[/bold white] [dim]{args_str}[/dim]")
                     elif etype == "tool/result":
@@ -242,19 +242,19 @@ def cmd_chat(args: argparse.Namespace):
 
 
 def cmd_investigate(args: argparse.Namespace):
-    from sentinel_harness import run_goal
-    from sentinel_service import BridgeConfig, SentinelService
+    from veliky_harness import run_goal
+    from veliky_service import BridgeConfig, VelikyService
 
     console.print(f"[bold cyan]Running investigation:[/bold cyan] {args.prompt}")
     patch_path = ensure_patch(args.endpoint, args.model, role=args.role, retrieval=args.retrieval)
     dsh_bin = str(ROOT / "RAG/harness/dsh-source")
-    service = SentinelService(BridgeConfig(role=args.role, retrieval=args.retrieval))
+    service = VelikyService(BridgeConfig(role=args.role, retrieval=args.retrieval))
 
     try:
         result = run_goal(
             args.prompt,
             patch=patch_path,
-            home=ROOT / ".sentinel-dsh",
+            home=ROOT / ".veliky-dsh",
             model=args.model,
             dsh_bin=dsh_bin,
             service=service,
@@ -277,17 +277,17 @@ def cmd_investigate(args: argparse.Namespace):
 
 
 def cmd_watch(args: argparse.Namespace):
-    from sentinel_watcher import detect_anomalies, dispatch
-    from sentinel_service import BridgeConfig, SentinelService
-    from sentinel_harness import run_goal
+    from veliky_watcher import detect_anomalies, dispatch
+    from veliky_service import BridgeConfig, VelikyService
+    from veliky_harness import run_goal
 
     console.print(f"[bold cyan]Starting Anomaly Watcher on Equipment:[/bold cyan] [bold green]{args.equipment}[/bold green]")
-    service = SentinelService(BridgeConfig())
+    service = VelikyService(BridgeConfig())
     patch_path = ensure_patch(args.endpoint, args.model)
     dsh_bin = str(ROOT / "RAG/harness/dsh-source")
 
     def launch(prompt, session_id):
-        return run_goal(prompt, patch=patch_path, home=ROOT / ".sentinel-dsh", model=args.model,
+        return run_goal(prompt, patch=patch_path, home=ROOT / ".veliky-dsh", model=args.model,
                         dsh_bin=dsh_bin, session_id=session_id, service=service)
 
     while True:
@@ -305,8 +305,8 @@ def cmd_watch(args: argparse.Namespace):
 
 
 def cmd_rag(args: argparse.Namespace):
-    from sentinel_service import BridgeConfig, SentinelService
-    service = SentinelService(BridgeConfig(role=args.role))
+    from veliky_service import BridgeConfig, VelikyService
+    service = VelikyService(BridgeConfig(role=args.role))
 
     if args.rag_cmd == "search":
         console.print(f"[cyan]Searching for:[/cyan] [bold]{args.query}[/bold]\n")
@@ -332,9 +332,9 @@ def cmd_rag(args: argparse.Namespace):
 
 
 def cmd_serve(args: argparse.Namespace):
-    from sentinel_llm_server import main as run_server
+    from veliky_llm_server import main as run_server
     sys.argv = [
-        "sentinel_llm_server.py",
+        "veliky_llm_server.py",
         "--model", args.model,
         "--host", args.host,
         "--port", str(args.port),
@@ -345,7 +345,7 @@ def cmd_serve(args: argparse.Namespace):
 
 
 def cmd_doctor(args: argparse.Namespace):
-    from sentinel_harness import ROOT
+    from veliky_harness import ROOT
     import importlib.util
 
     table = Table(title="System Diagnostics & Readiness", show_header=True)
@@ -377,9 +377,9 @@ def cmd_doctor(args: argparse.Namespace):
         table.add_row(f"Dependency: {dep}", status, "")
 
     # Vault Notes
-    from sentinel_service import SentinelService
-    notes = SentinelService()._notes()
-    table.add_row("Knowledge Vault Notes", f"[green]{len(notes)} loaded[/green]", str(ROOT / "RAG/sentinel_vault"))
+    from veliky_service import VelikyService
+    notes = VelikyService()._notes()
+    table.add_row("Knowledge Vault Notes", f"[green]{len(notes)} loaded[/green]", str(ROOT / "RAG/veliky_vault"))
 
     console.print(table)
 
@@ -393,8 +393,8 @@ def main():
 
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
-    # Agent CLI (Full SENTINEL Persona Interface with /model, /agent, /thinking, /tools)
-    p_agent = subparsers.add_parser("agent", aliases=["start"], help="Start interactive SENTINEL Agent CLI (/model, /agent, /thinking, /tools)")
+    # Agent CLI (Full VELIKY Persona Interface with /model, /agent, /thinking, /tools)
+    p_agent = subparsers.add_parser("agent", aliases=["start"], help="Start interactive VELIKY Agent CLI (/model, /agent, /thinking, /tools)")
     p_agent.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct", help="Initial model name")
     p_agent.add_argument("--agent", default="general", choices=("general", "code", "investigator", "sre", "researcher"), help="Initial agent persona")
     p_agent.add_argument("--no-thinking", action="store_true", help="Disable thinking mode")

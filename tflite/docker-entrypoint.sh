@@ -6,11 +6,11 @@ export INFERENCE_ENDPOINT="${INFERENCE_ENDPOINT:-http://127.0.0.1:8000/v1}"
 export MODEL_NAME="${MODEL_NAME:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"
 export ROLE="${ROLE:-analyst}"
 export RETRIEVAL="${RETRIEVAL:-hybrid}"
-export DSH_HOME="${DSH_HOME:-/app/.sentinel-dsh}"
+export DSH_HOME="${DSH_HOME:-/app/.veliky-dsh}"
 export PYTHONUNBUFFERED=1
 export PATH="/opt/venv/bin:$PATH"
 
-mkdir -p /app/RAG/state /app/.sentinel-dsh
+mkdir -p /app/RAG/state /app/.veliky-dsh
 
 # Helper to check if model server is reachable
 check_server() {
@@ -25,13 +25,13 @@ if [[ "${1:-}" == "chat" ]]; then
 fi
 
 # Dynamically calibrate Cordis patch with container-local paths
-/opt/venv/bin/python /app/RAG/sentinel_harness.py configure \
+/opt/venv/bin/python /app/RAG/veliky_harness.py configure \
   --endpoint "$INFERENCE_ENDPOINT" \
   --model "$MODEL_NAME" \
   --role "$ROLE" \
   --retrieval "$RETRIEVAL" \
   --python /opt/venv/bin/python \
-  --patch /app/sentinel.cordis.patch.yml \
+  --patch /app/veliky.cordis.patch.yml \
   --mode "$MODE" || {
     echo "[reinery-container] Warning: Dynamic patch calibration exited non-zero; continuing."
 }
@@ -41,7 +41,7 @@ if [[ "${1:-}" == "chat" || "${1:-}" == "investigate" || "${1:-}" == "watch" ]];
     if [[ "$INFERENCE_ENDPOINT" == *"127.0.0.1"* || "$INFERENCE_ENDPOINT" == *"localhost"* ]]; then
         if ! check_server; then
             echo "[reinery-container] Starting local model server ($MODEL_NAME) on port 8000..."
-            /opt/venv/bin/python /app/RAG/sentinel_llm_server.py --host 0.0.0.0 --port 8000 --model "$MODEL_NAME" &
+            /opt/venv/bin/python /app/RAG/veliky_llm_server.py --host 0.0.0.0 --port 8000 --model "$MODEL_NAME" &
             SERVER_PID=$!
             trap "kill $SERVER_PID 2>/dev/null || true" EXIT
 
