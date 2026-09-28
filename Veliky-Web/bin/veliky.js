@@ -16,7 +16,8 @@ const projectsRoot = path.resolve(projectRoot, '..');
 
 // Helper to get local network IP address
 function getLocalIP() {
-  const interfaces = os.networkInterfaces();
+  let interfaces;
+  try { interfaces = os.networkInterfaces(); } catch { return '127.0.0.1'; }
   for (const name of Object.keys(interfaces)) {
     for (const net of interfaces[name] || []) {
       if (net.family === 'IPv4' && !net.internal) {
@@ -35,71 +36,46 @@ const program = new Command();
 program
   .name('veliky')
   .description('🛡️ VELIKY - Sovereign On-Premise Agentic AI Workbench Master Orchestrator')
-  .version('1.0.0');
+  .version(JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).version);
 
-// Helper to launch Vite web server and LLM server silently in background
-function launchWebServerInBackground() {
-  const viteJs = path.join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
-  if (fs.existsSync(viteJs)) {
-    try {
-      const webProc = spawn(process.execPath, [viteJs, '--host'], {
-        cwd: projectRoot,
-        detached: true,
-        stdio: 'ignore'
-      });
-      webProc.unref();
-    } catch (_) {}
-  }
-
-  // Also spawn local LLM server on port 8000 if python environment exists
-  const llmServerScript = path.join(projectsRoot, 'tflite', 'RAG', 'veliky_llm_server.py');
-  const pythonBin = path.join(os.homedir(), 'tflite', '.venv', 'bin', 'python');
-  if (fs.existsSync(llmServerScript) && fs.existsSync(pythonBin)) {
-    try {
-      const llmProc = spawn(pythonBin, [llmServerScript, '--port', '8000'], {
-        cwd: path.dirname(llmServerScript),
-        detached: true,
-        stdio: 'ignore'
-      });
-      llmProc.unref();
-    } catch (_) {}
-  }
+function launchPython(script, args) {
+  const venv = path.join(projectsRoot, 'tflite', '.venv', os.platform() === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+  const python = process.env.VELIKY_PYTHON || (fs.existsSync(venv) ? venv : os.platform() === 'win32' ? 'python' : 'python3');
+  const child = spawn(python, [path.join(projectsRoot, 'tflite', script), ...args], { stdio: 'inherit' });
+  child.on('error', err => { console.error('Failed to start VELIKY:', err.message); process.exitCode = 1; });
+  child.on('exit', (code, signal) => { process.exitCode = code ?? (signal === 'SIGINT' ? 130 : 1); });
+  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
 }
 
 // Command: veliky start / cli
 program
   .command('start')
   .alias('cli')
-  .alias('serve')
   .description('Launch VELIKY Sovereign Agent CLI (with /model, /agent, /thinking, /tools, /clear)')
-  .option('-m, --model <name>', 'Initial model name', 'Qwen/Qwen2.5-1.5B-Instruct')
+  .option('-m, --model <name>', 'Initial model name', process.env.VELIKY_REASONING_MODEL || process.env.MODEL_NAME || 'Qwen/Qwen2.5-1.5B-Instruct')
+  .option('--endpoint <url>', 'Use an existing local inference server')
+  .option('--no-thinking', 'Disable the thinking indicator')
+  .option('--role <role>', 'Knowledge access role', process.env.VELIKY_ROLE || 'analyst')
+  .option('--retrieval <mode>', 'vault or hybrid retrieval', 'vault')
   .option('-a, --agent <type>', 'Initial agent persona (general, code, investigator, sre, researcher)', 'general')
   .action((options) => {
-    const candidatePythons = [
-      path.join(projectsRoot, 'tflite', '.venv', 'bin', 'python'),
-      path.join(os.homedir(), 'Projects', 'Tflite', 'Veliky', 'tflite', '.venv', 'bin', 'python'),
-      path.join(os.homedir(), '.veliky', 'app', 'tflite', '.venv', 'bin', 'python'),
-      path.join(os.homedir(), 'tflite', '.venv', 'bin', 'python'),
-      '/opt/venv/bin/python',
-    ];
-    let pythonBin = os.platform() === 'win32' ? 'python' : 'python3';
-    for (const p of candidatePythons) {
-      if (fs.existsSync(p)) {
-        pythonBin = p;
-        break;
-      }
-    }
-    const scriptPath = path.join(__dirname, 'veliky_cli.py');
-
-    const cli = spawn(pythonBin, [scriptPath, '--model', options.model, '--agent', options.agent], {
-      cwd: process.cwd(),
-      stdio: 'inherit'
-    });
-
-    cli.on('error', (err) => {
-      console.error('❌ Failed to start VELIKY CLI:', err.message);
-    });
+    const args = ['--model', options.model, '--agent', options.agent, '--role', options.role, '--retrieval', options.retrieval];
+    if (options.endpoint) args.push('--endpoint', options.endpoint);
+    if (!options.thinking) args.push('--no-thinking');
+    launchPython('veliky_cli.py', args);
   });
+
+for (const [name, description] of [
+  ['serve', 'Start the local inference server'],
+  ['doctor', 'Check backend dependencies and inference readiness'],
+  ['chat', 'Start the tool-enabled harness chat'],
+  ['investigate', 'Run a verified investigation'],
+  ['rag', 'Search or list knowledge vault notes'],
+  ['watch', 'Monitor sensor anomalies'],
+]) {
+  program.command(name).description(description).allowUnknownOption().allowExcessArguments()
+    .helpOption(false).action((_options, command) => launchPython('reinery_cli.py', [name, ...command.args]));
+}
 
 // Command: veliky web / open
 program
@@ -149,7 +125,7 @@ program
 program
   .command('status')
   .description('Check VELIKY system telemetry and service health')
-  .action(() => {
+  .action(async () => {
     const totalMem = (os.totalmem() / (1024 * 1024 * 1024)).toFixed(2);
     const freeMem = (os.freemem() / (1024 * 1024 * 1024)).toFixed(2);
     const cpus = os.cpus().length;
@@ -162,20 +138,29 @@ program
     console.log(`🧠 Memory            : ${freeMem} GB free of ${totalMem} GB total`);
     console.log(`🌐 Local IP          : ${localIP}`);
     console.log(`🔌 Web Port          : ${PORT}`);
-    console.log(`📚 RAG Engine        : Open-Notebook (Port 8000)`);
-    console.log(`🤖 Agent Runtime     : Veliky Harness (Port 3080)`);
-    console.log(`🟢 System Status     : Ready / Operational\n`);
+    console.log(`🤖 Agent Runtime     : Veliky Harness (stdio)`);
+    for (const [name, url] of [
+      ['Web', 'http://127.0.0.1:5173'],
+      ['Gateway', 'http://127.0.0.1:8766/health'],
+      ['Model API', `${process.env.VELIKY_REASONING_ENDPOINT || 'http://127.0.0.1:8000/v1'}/models`],
+    ]) {
+      try {
+        const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+        console.log(`${name}: ${response.ok ? 'Online' : `HTTP ${response.status}`}`);
+        if (!response.ok) process.exitCode = 1;
+      } catch { console.log(`${name}: Unreachable`); process.exitCode = 1; }
+    }
   });
 
 // Command: veliky update
 program
   .command('update')
-  .description('Pull latest VELIKY updates from GitHub and reinstall')
+  .description('Reinstall dependencies and refresh the CLI link for this checkout')
   .action(() => {
     console.log('\n==================================================');
-    console.log('🔄 Updating VELIKY to Latest Version from GitHub');
+    console.log('🔄 Refreshing VELIKY Installation');
     console.log('==================================================\n');
-    console.log('📥 Fetching latest code and dependencies...\n');
+    console.log('📥 Installing dependencies from this checkout...\n');
 
     const installScript = os.platform() === 'win32' ? 'install.ps1' : 'install.sh';
     const installerPath = path.join(projectRoot, installScript);
@@ -183,12 +168,14 @@ program
     const updater = spawn(
       os.platform() === 'win32' ? 'powershell' : 'bash',
       [installerPath],
-      { stdio: 'inherit', shell: true }
+      { stdio: 'inherit', cwd: projectRoot }
     );
 
+    updater.on('error', err => { console.error('Update failed:', err.message); process.exitCode = 1; });
     updater.on('close', (code) => {
+      process.exitCode = code ?? 1;
       if (code === 0) {
-        console.log('\n✅ VELIKY updated successfully to the latest version!\n');
+        console.log('\n✅ VELIKY installation refreshed successfully!\n');
       } else {
         console.error(`\n❌ Update failed with exit code ${code}. Please try running install script manually.\n`);
       }

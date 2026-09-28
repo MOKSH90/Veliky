@@ -5,3 +5,7 @@ PyYAML>=6,<7
 # Offline capability schema validation and CSV callable
 jsonschema>=4.23,<5
 pandas>=2.2,<4
+
+# Interactive command-line presentation and completion
+rich>=13,<15
+prompt-toolkit>=3,<4

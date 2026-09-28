@@ -15,12 +15,10 @@ export MODEL_NAME="${MODEL_NAME:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"
 
 mkdir -p "$VELIKY_STATE_DIR" "$VELIKY_DATA_DIR" "$VAULT_DIR"
 
-if [[ "${1:-}" == "chat" || "${1:-}" == "cli" ]]; then
-    exec python3 /app/tflite/veliky_cli.py --model "$MODEL_NAME" "${@:2}"
-elif [[ "${1:-}" == "investigate" ]]; then
-    exec python3 /app/tflite/reinery_cli.py investigate "${@:2}"
-elif [[ "${1:-}" == "doctor" ]]; then
-    exec python3 /app/tflite/reinery_cli.py doctor
+if [[ "${1:-}" == "cli" || "${1:-}" == "start" ]]; then
+    exec python3 /app/tflite/reinery_cli.py agent "${@:2}"
+elif [[ "${1:-}" == "chat" || "${1:-}" == "investigate" || "${1:-}" == "doctor" || "${1:-}" == "rag" || "${1:-}" == "watch" || "${1:-}" == "serve" ]]; then
+    exec python3 /app/tflite/reinery_cli.py "$@"
 elif [[ "${1:-}" == "gateway" || -z "${1:-}" ]]; then
     echo "🛡️ Starting VELIKY API Gateway on ${VELIKY_GATEWAY_HOST}:${VELIKY_GATEWAY_PORT}..."
     exec python3 /app/Veliky-Web/server/gateway.py --host "$VELIKY_GATEWAY_HOST" --port "$VELIKY_GATEWAY_PORT"

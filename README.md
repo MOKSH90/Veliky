@@ -102,6 +102,57 @@ For offline use, cache the selected model first, then set `HF_HUB_OFFLINE=1` and
 
 Full ML ingestion and vector retrieval dependencies are listed separately in [requirements.txt](tflite/RAG/requirements.txt). Linux capability execution also uses host tools such as Bubblewrap, Poppler, Tesseract, and ImageMagick; the gateway Dockerfile lists the installed utilities.
 
+## Command-line interface
+
+After installing the lightweight Python dependencies above and running `npm ci` in
+`Veliky-Web`, launch from the repository root:
+
+```bash
+node Veliky-Web/bin/veliky.js start
+```
+
+The prompt opens immediately. `/help`, `/model`, `/agent`, `/tools`, `/clear`, and
+`/exit` work without loading a model. The first AI request loads the selected
+model in-process; install `torch transformers accelerate` for this mode. First
+use may download weights. A tokenizer-only cache is insufficient for offline
+inference, and model failures are reported rather than replaced with canned answers.
+
+To use a separate model server with consistent model selection:
+
+```bash
+# Terminal 1
+node Veliky-Web/bin/veliky.js serve --model Qwen/Qwen2.5-1.5B-Instruct
+# Terminal 2
+node Veliky-Web/bin/veliky.js start --endpoint http://127.0.0.1:8000/v1 --model Qwen/Qwen2.5-1.5B-Instruct
+```
+
+`serve` starts inference; `start` and `cli` open the interactive prompt.
+`VELIKY_PYTHON` overrides interpreter discovery. Both Python CLI entry points use
+`tflite/veliky_cli.py`; `Veliky-Web/bin/veliky_cli.py` is a compatibility launcher.
+The direct Python entry point should be run with `tflite/.venv/bin/python`.
+
+Additional commands:
+
+```bash
+node Veliky-Web/bin/veliky.js doctor
+node Veliky-Web/bin/veliky.js status
+node Veliky-Web/bin/veliky.js rag notes --retrieval vault
+node Veliky-Web/bin/veliky.js chat --model Qwen/Qwen2.5-1.5B-Instruct
+```
+
+`chat` uses the embedded harness and requires its Node dependencies, native
+runtime, and a running model endpoint. Common options also work after legacy
+subcommands, for example `tflite/reinery serve --model MODEL`.
+The interactive agent defaults to vault-only retrieval to avoid loading embedding
+models for every new session; use `--retrieval hybrid` when those dependencies
+are installed. Workspace file and shell tools operate with the launching user's
+permissions. The separate harness uses the capability policy layer.
+
+`status` probes services and exits nonzero when any service is unavailable.
+The installer (`bash Veliky-Web/install.sh`) installs the lightweight CLI
+dependencies and links `veliky`; inference dependencies and model weights are
+installed separately. Windows installation uses `Veliky-Web/install.ps1`.
+
 ## Configuration
 
 | Variable | Purpose |

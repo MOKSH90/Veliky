@@ -16,13 +16,6 @@ from typing import Any
 
 # Ensure project root and RAG directory are on sys.path
 ROOT = Path(__file__).resolve().parent
-_VENV_PY = ROOT / ".venv/bin/python"
-_OPT_VENV_PY = Path("/opt/venv/bin/python")
-if _VENV_PY.exists() and sys.prefix != str(ROOT / ".venv"):
-    os.execv(str(_VENV_PY), [str(_VENV_PY)] + sys.argv)
-elif _OPT_VENV_PY.exists() and sys.prefix != "/opt/venv":
-    os.execv(str(_OPT_VENV_PY), [str(_OPT_VENV_PY)] + sys.argv)
-
 RAG_DIR = ROOT / "RAG"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(RAG_DIR))
@@ -35,11 +28,12 @@ from rich.table import Table
 
 console = Console()
 
-VELIKY_BANNER = """[bold white]  ███████   [/bold white][bold cyan]████████[/bold cyan][bold white]   ███    ██  ████████  ██  ███    ██  ████████  ██      [/bold white]
-[bold white] ██▀        [/bold white][bold cyan] ▀▀▀▀▀▀ [/bold cyan][bold white]   ████   ██     ██     ██  ████   ██  ██       ██      [/bold white]
-[bold white] ▀███████   [/bold white][bold cyan]████████[/bold cyan][bold white]   ██ ██  ██     ██     ██  ██ ██  ██  ███████  ██      [/bold white]
-[bold white]      ▄██   [/bold white][bold cyan] ▄▄▄▄▄▄ [/bold cyan][bold white]   ██  ██ ██     ██     ██  ██  ██ ██  ██       ██      [/bold white]
-[bold white] ███████▀   [/bold white][bold cyan]████████[/bold cyan][bold white]   ██   ████     ██     ██  ██   ████  ████████  ███████▀[/bold white]"""
+VELIKY_BANNER = """[bold white]██╗   ██╗ [/bold white][bold cyan]███████╗ [/bold cyan][bold white]██╗      ██╗ ██╗  ██╗ ██╗   ██╗[/bold white]
+[bold white]██║   ██║ [/bold white][bold cyan]██╔════╝ [/bold cyan][bold white]██║      ██║ ██║ ██╔╝ ╚██╗ ██╔╝[/bold white]
+[bold white]██║   ██║ [/bold white][bold cyan]█████╗   [/bold cyan][bold white]██║      ██║ █████╔╝   ╚████╔╝ [/bold white]
+[bold white]╚██╗ ██╔╝ [/bold white][bold cyan]██╔══╝   [/bold cyan][bold white]██║      ██║ ██╔═██╗    ╚██╔╝  [/bold white]
+[bold white] ╚████╔╝  [/bold white][bold cyan]███████╗ [/bold cyan][bold white]███████╗ ██║ ██║  ██╗    ██║   [/bold white]
+[bold white]  ╚═══╝   [/bold white][bold cyan]╚══════╝ [/bold cyan][bold white]╚══════╝ ╚═╝ ╚═╝  ╚═╝    ╚═╝   [/bold white]"""
 
 
 def ensure_patch(endpoint: str, model: str, role: str = "analyst", retrieval: str = "hybrid", mode: str = "investigate") -> Path:
@@ -77,12 +71,13 @@ def cmd_agent(args: argparse.Namespace):
         model=args.model,
         agent=args.agent,
         thinking=not getattr(args, "no_thinking", False),
+        endpoint=args.endpoint, role=args.role, retrieval=args.retrieval,
     )
     cli.run()
 
 
 def cmd_chat(args: argparse.Namespace):
-    from veliky_harness import VelikyHarness
+    from veliky_harness import sdk_class
     from veliky_service import BridgeConfig, VelikyService
 
     console.print()
@@ -113,8 +108,9 @@ def cmd_chat(args: argparse.Namespace):
     }
 
     console.print("[dim]Initializing agent harness & mounting RAG MCP tools...[/dim]")
+    harness = None
     try:
-        harness = VelikyHarness(
+        harness = sdk_class()(
             dsh_home=str(ROOT / ".veliky-dsh"),
             cwd=str(ROOT),
             patches=(str(patch_path),),
@@ -129,6 +125,8 @@ def cmd_chat(args: argparse.Namespace):
         session = harness.start_session()
         console.print("[bold green]Agent ready.[/bold green]\n")
     except Exception as exc:
+        if harness is not None:
+            harness.close()
         console.print(f"[bold red]Failed to start agent:[/bold red] {exc}")
         return 1
 
@@ -143,7 +141,7 @@ def cmd_chat(args: argparse.Namespace):
             if not user_input:
                 continue
 
-            if user_input.lower() in ("exit", "quit", ":q"):
+            if user_input.lower() in ("exit", "quit", ":q", "/exit", "/quit"):
                 console.print("[dim]Goodbye![/dim]")
                 break
 
@@ -165,7 +163,7 @@ def cmd_chat(args: argparse.Namespace):
                 console.print(f"[dim]Mode: {res.get('mode')}[/dim]")
                 for item in res.get("results", []):
                     title = item.get("title") or item.get("source", "Unknown")
-                    console.print(f"• [bold green]{title}[/bold green] (Evidence ID: [dim]{item.get('evidence_id')[:10]}...[/dim])")
+                    console.print(f"• [bold green]{title}[/bold green] (Evidence ID: [dim]{str(item.get('evidence_id', ''))[:10]}...[/dim])")
                     chunk = item.get("chunk", "")[:200].replace("\n", " ")
                     console.print(f"  [dim]{chunk}...[/dim]")
                 console.print()
@@ -282,8 +280,8 @@ def cmd_watch(args: argparse.Namespace):
     from veliky_harness import run_goal
 
     console.print(f"[bold cyan]Starting Anomaly Watcher on Equipment:[/bold cyan] [bold green]{args.equipment}[/bold green]")
-    service = VelikyService(BridgeConfig())
-    patch_path = ensure_patch(args.endpoint, args.model)
+    service = VelikyService(BridgeConfig(role=args.role, retrieval=args.retrieval))
+    patch_path = ensure_patch(args.endpoint, args.model, role=args.role, retrieval=args.retrieval)
     dsh_bin = str(ROOT / "RAG/harness/dsh-source")
 
     def launch(prompt, session_id):
@@ -306,7 +304,7 @@ def cmd_watch(args: argparse.Namespace):
 
 def cmd_rag(args: argparse.Namespace):
     from veliky_service import BridgeConfig, VelikyService
-    service = VelikyService(BridgeConfig(role=args.role))
+    service = VelikyService(BridgeConfig(role=args.role, retrieval=args.retrieval))
 
     if args.rag_cmd == "search":
         console.print(f"[cyan]Searching for:[/cyan] [bold]{args.query}[/bold]\n")
@@ -386,16 +384,16 @@ def cmd_doctor(args: argparse.Namespace):
 
 def main():
     parser = argparse.ArgumentParser(prog="reinery", description="Reinery — Sovereign AI Workbench & Pipeline")
-    parser.add_argument("--endpoint", default="http://127.0.0.1:8000/v1", help="OpenAI-compatible inference endpoint")
-    parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct", help="Open-weight model identifier")
-    parser.add_argument("--role", default="analyst", help="User role clearance level")
+    parser.add_argument("--endpoint", default=os.environ.get("VELIKY_REASONING_ENDPOINT", os.environ.get("INFERENCE_ENDPOINT", "http://127.0.0.1:8000/v1")), help="OpenAI-compatible inference endpoint")
+    parser.add_argument("--model", default=os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")), help="Open-weight model identifier")
+    parser.add_argument("--role", default=os.environ.get("VELIKY_ROLE", "analyst"), help="User role clearance level")
     parser.add_argument("--retrieval", default="hybrid", choices=("hybrid", "vault"), help="Retrieval backend")
 
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
     # Agent CLI (Full VELIKY Persona Interface with /model, /agent, /thinking, /tools)
     p_agent = subparsers.add_parser("agent", aliases=["start"], help="Start interactive VELIKY Agent CLI (/model, /agent, /thinking, /tools)")
-    p_agent.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct", help="Initial model name")
+    p_agent.add_argument("--model", default=os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")), help="Initial model name")
     p_agent.add_argument("--agent", default="general", choices=("general", "code", "investigator", "sre", "researcher"), help="Initial agent persona")
     p_agent.add_argument("--no-thinking", action="store_true", help="Disable thinking mode")
     p_agent.set_defaults(func=cmd_agent)
@@ -423,7 +421,7 @@ def main():
 
     # RAG
     p_rag = subparsers.add_parser("rag", help="Knowledge base and RAG retrieval tools")
-    rag_subs = p_rag.add_subparsers(dest="rag_cmd", help="RAG commands")
+    rag_subs = p_rag.add_subparsers(dest="rag_cmd", required=True, help="RAG commands")
     p_search = rag_subs.add_parser("search", help="Search knowledge base")
     p_search.add_argument("query", help="Search query")
     p_search.add_argument("--top-k", type=int, default=3)
@@ -442,13 +440,31 @@ def main():
     p_doc = subparsers.add_parser("doctor", help="Run system diagnostics")
     p_doc.set_defaults(func=cmd_doctor)
 
+    # Accept common options before or after any subcommand without overwriting
+    # values already parsed by the parent parser.
+    for child in (p_agent, p_chat, p_inv, p_watch, p_rag, p_search, p_notes, p_serve, p_doc):
+        for option in ("endpoint", "model", "role", "retrieval"):
+            flag = "--" + option
+            if flag in child._option_string_actions:
+                child._option_string_actions[flag].default = argparse.SUPPRESS
+            else:
+                kwargs = {"default": argparse.SUPPRESS}
+                if option == "retrieval":
+                    kwargs["choices"] = ("hybrid", "vault")
+                child.add_argument(flag, **kwargs)
     args = parser.parse_args()
     if not hasattr(args, "func"):
         parser.print_help()
         sys.exit(0)
 
-    args.func(args)
+    try:
+        return args.func(args) or 0
+    except KeyboardInterrupt:
+        return 130
+    except Exception as exc:
+        console.print(f"[bold red]Command failed:[/bold red] {exc}")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

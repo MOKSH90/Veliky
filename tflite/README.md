@@ -21,7 +21,7 @@ docker compose run --rm reinery chat
 # 4. Or run an autonomous investigation
 docker compose run --rm reinery investigate "Analyze Pump P-204 using its inspection and sensor history."
 ```
-*See [DOCKER.md](file:///home/lucifer/Projects/Tflite/reinery/DOCKER.md) for complete container documentation.*
+*See [DOCKER.md](DOCKER.md) for complete container documentation.*
 
 ---
 
@@ -48,3 +48,5 @@ docker compose run --rm reinery investigate "Analyze Pump P-204 using its inspec
 - **FastMCP Protocol**: Standardized stdio Model Context Protocol bridge exposing sensor telemetry, bounded math, and document search.
 - **Deterministic Verifier**: Multi-pass validator ensuring claims in generated reports cite exact quotes and matching calculations.
 - **Cryptographic Audit Trail**: Hash-chained audit logs recording every tool call, response, and verification result.
+
+For the shared interactive agent, setup requirements, and current launch commands, see the [root CLI documentation](../README.md#command-line-interface).

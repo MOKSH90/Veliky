@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 echo "=================================================="
 echo "🛡️  Installing VELIKY Sovereign AI Workbench CLI"
@@ -10,6 +10,14 @@ echo ""
 VELIKY_HOME="$HOME/.veliky"
 APP_DIR="$VELIKY_HOME/app"
 
+# Resolve a local checkout from the script, independently of the caller's cwd.
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+    INSTALL_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "$INSTALL_DIR/package.json" && -d "$INSTALL_DIR/bin" ]]; then
+        cd "$INSTALL_DIR"
+    fi
+fi
+
 # Check for Node.js or auto-install portable runtime
 if ! command -v node &> /dev/null; then
     echo "⚠️ Node.js not detected on this machine."
@@ -17,7 +25,7 @@ if ! command -v node &> /dev/null; then
     
     OS="$(uname -s)"
     ARCH="$(uname -m)"
-    NODE_VER="v20.18.0"
+    NODE_VER="v22.19.0"
     
     if [ "$OS" = "Darwin" ]; then
         if [ "$ARCH" = "arm64" ]; then
@@ -26,7 +34,11 @@ if ! command -v node &> /dev/null; then
             NODE_DIST="node-${NODE_VER}-darwin-x64"
         fi
     else
-        NODE_DIST="node-${NODE_VER}-linux-x64"
+        case "$ARCH" in
+            x86_64) NODE_DIST="node-${NODE_VER}-linux-x64" ;;
+            aarch64|arm64) NODE_DIST="node-${NODE_VER}-linux-arm64" ;;
+            *) echo "Unsupported CPU architecture: $ARCH"; exit 1 ;;
+        esac
     fi
     
     mkdir -p "$VELIKY_HOME/node"
@@ -64,6 +76,13 @@ else
     APP_DIR="$(pwd)"
 fi
 
+node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 19)) { console.error("Node.js 22.19+ is required"); process.exit(1); }'
+BACKEND_DIR="$(cd "$APP_DIR/../tflite" && pwd)"
+PYTHON_BOOTSTRAP="${VELIKY_PYTHON:-python3}"
+if [[ ! -x "$BACKEND_DIR/.venv/bin/python" ]]; then
+    "$PYTHON_BOOTSTRAP" -m venv "$BACKEND_DIR/.venv"
+fi
+"$BACKEND_DIR/.venv/bin/python" -m pip install -r "$BACKEND_DIR/RAG/requirements-harness.txt"
 echo "📦 Installing VELIKY dependencies..."
 npm install --silent
 
@@ -113,7 +132,7 @@ echo "🎉 Installation Complete! VELIKY is ready."
 echo "=================================================="
 echo "Run any of these commands anywhere in your terminal:"
 echo "  • veliky pair    -> Show mobile app pairing QR code"
-echo "  • veliky start   -> Launch server engine"
+echo "  • veliky start   -> Launch interactive CLI"
 echo "  • veliky web     -> Open web UI in browser"
 echo "  • veliky status  -> View system telemetry"
 echo "=================================================="
