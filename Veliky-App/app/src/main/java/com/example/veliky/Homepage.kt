@@ -29,7 +29,7 @@ fun HomePage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B0F14))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -38,7 +38,7 @@ fun HomePage(
             verticalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
         ) {
-            // 1. Header (VELIKY • ON-PREMISE)
+            // 1. Header (VELIKY • ON-PREMISE with Logo)
             item {
                 VelikyHeader(userName = userName)
             }
@@ -58,7 +58,7 @@ fun HomePage(
                         text = "QUICK FIELD ACTIONS",
                         style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 1.sp
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -69,8 +69,8 @@ fun HomePage(
                         ActionCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Default.CameraAlt,
-                            iconBgColor = Color(0xFF0E3A43),
-                            iconTint = Color(0xFF00E5FF),
+                            iconBgColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconTint = MaterialTheme.colorScheme.primary,
                             title = "Snap Asset",
                             subtitle = "Nameplate & OCR",
                             onClick = onCameraClick
@@ -78,8 +78,8 @@ fun HomePage(
                         ActionCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Default.Mic,
-                            iconBgColor = Color(0xFF3B2F10),
-                            iconTint = Color(0xFFFFB800),
+                            iconBgColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
                             title = "Voice Note",
                             subtitle = "Record Field Fix",
                             onClick = onVoiceClick
@@ -95,7 +95,7 @@ fun HomePage(
                         text = "UNPROMPTED SENSOR ALERT",
                         style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 1.sp
                     )
                     CriticalSensorAlertCard(
@@ -120,14 +120,14 @@ fun HomePage(
                             text = "ACTIVE PLANT ASSETS",
                             style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             letterSpacing = 1.sp
                         )
                         Text(
                             text = "3 Online",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00E5FF)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
@@ -137,7 +137,7 @@ fun HomePage(
                             location = "Unit 4 · Sector B",
                             statusText = "Attention Needed",
                             isWarning = true,
-                            onClick = { onAssetClick("P-204") }
+                            onClick = { onAlertClick("P-204") }
                         )
                         AssetCard(
                             name = "Compressor C-104",
@@ -164,7 +164,7 @@ fun HomePage(
                         text = "CONNECTED WORKSTATION TELEMETRY",
                         style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 1.sp
                     )
                     Spacer(modifier = Modifier.height(10.dp))
