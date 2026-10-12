@@ -13,7 +13,8 @@ import {
   Edit3, 
   Lock, 
   ShieldAlert,
-  SearchCode
+  SearchCode,
+  Upload
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { FileNode } from '../../lib/types'
@@ -146,11 +147,13 @@ export function FilesView() {
   const openFileByPath = useEdithStore((s) => s.openFileByPath)
   const reindexWikilinks = useEdithStore((s) => s.reindexWikilinks)
   const setQuickSwitcherOpen = useEdithStore((s) => s.setQuickSwitcherOpen)
+  const importVaultFiles = useEdithStore((s) => s.importVaultFiles)
   const user = useEdithStore((s) => s.authUser)
   const wikilinkEdges = useEdithStore((s) => s.wikilinkEdges)
 
   const [query, setQuery] = useState('')
   const filtered = useMemo(() => filterTree(files, query), [files, query])
+  const [isDragging, setIsDragging] = useState(false)
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
@@ -235,13 +238,24 @@ export function FilesView() {
         <section 
           className="file-tree workspace-explorer" 
           onClick={contextMenu ? closeMenu : undefined} 
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setIsDragging(false)
+            if (e.dataTransfer.files?.length) {
+              importVaultFiles(e.dataTransfer.files)
+            }
+          }}
           style={{ 
-            background: 'var(--surface-bg, #121214)', 
+            background: isDragging ? 'rgba(99, 102, 241, 0.08)' : 'var(--surface-bg, #121214)', 
             borderRight: '1px solid var(--surface-border, rgba(255,255,255,0.08))', 
+            outline: isDragging ? '2px dashed #6366f1' : 'none',
             padding: '12px 0', 
             height: '100%',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            transition: 'background 0.15s ease'
           }}
         >
           {/* Header & Vault Actions */}
@@ -289,6 +303,33 @@ export function FilesView() {
                 >
                   <FolderPlus size={12} />
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('vault-file-upload-input')
+                    if (el) (el as HTMLInputElement).click()
+                  }}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#34d399',
+                    borderRadius: '4px',
+                    padding: '3px 5px',
+                    cursor: 'pointer'
+                  }}
+                  title="Upload Files to Vault"
+                >
+                  <Upload size={12} />
+                </button>
+                <input
+                  id="vault-file-upload-input"
+                  type="file"
+                  multiple
+                  hidden
+                  onChange={(e) => {
+                    if (e.target.files) importVaultFiles(e.target.files)
+                  }}
+                />
                 <button
                   type="button"
                   onClick={() => setQuickSwitcherOpen(true)}

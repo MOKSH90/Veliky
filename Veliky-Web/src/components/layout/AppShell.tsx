@@ -33,10 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="veliky-workspace">
           {children}
         </main>
-        <RightIntelligencePanel />
       </div>
-      <HistoryPanel />
-      <ProfilePanel />
     </div>
   )
 }

@@ -22,6 +22,8 @@ from typing import Any
 
 import torch
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -39,7 +41,9 @@ class ModelEngine:
         self.device = device
         self._lock = threading.Lock()
         if device == "cpu":
-            torch.set_num_threads(4)
+            num_threads = int(os.environ.get("TORCH_NUM_THREADS", min(16, os.cpu_count() or 4)))
+            torch.set_num_threads(num_threads)
+            logger.info("Configured PyTorch CPU execution with %d threads", num_threads)
         self.dtype = getattr(torch, torch_dtype, torch.float32)
         offline = os.environ.get("TRANSFORMERS_OFFLINE", "0") == "1" or os.environ.get("HF_HUB_OFFLINE", "0") == "1"
         logger.info("Initializing inference engine for %s...", model_name)
@@ -172,7 +176,16 @@ def parse_tool_calls(text: str) -> tuple[str, list[dict[str, Any]]]:
 
 
 def create_app(engine: ModelEngine) -> Starlette:
-    app = Starlette()
+    middleware = [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+            allow_credentials=True,
+        )
+    ]
+    app = Starlette(middleware=middleware)
 
     async def list_models(request: Request) -> JSONResponse:
         model_info = {
@@ -194,8 +207,70 @@ def create_app(engine: ModelEngine) -> Starlette:
         max_tokens = int(body.get("max_tokens", 2048))
         request_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
         created = int(time.time())
+        user_msg = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+        print("\n" + "="*60, flush=True)
+        print(f"📱 [INCOMING QUERY FROM CLIENT / MOBILE] (ID: {request_id})", flush=True)
+        print(f"👉 Prompt: {user_msg}", flush=True)
+        print("="*60, flush=True)
 
-        prompt_text = engine.format_input(messages, tools)
+        # Auto-grounding: only inject if caller has NOT already provided workspace context
+        workspace_context = ""
+        user_lower = user_msg.lower()
+        workspace_dir = "/workspace" if os.path.exists("/workspace") else "/app"
+        already_has_context = any("=== DOCUMENT:" in m.get("content", "") or "=== REQUESTED FILE" in m.get("content", "") or "=== File:" in m.get("content", "") for m in messages)
+        
+        if not already_has_context:
+            # Read README.md if mentioned or if asking about repository/project files
+            if any(w in user_lower for w in ["readme", "project", "sentinel", "analyze", "context", "files"]):
+                candidates = [
+                    os.path.join(workspace_dir, "README.md"),
+                    os.path.join(workspace_dir, "readme.md"),
+                    "/app/README.md"
+                ]
+                for c in candidates:
+                    if os.path.exists(c):
+                        try:
+                            with open(c, "r", encoding="utf-8", errors="ignore") as f:
+                                readme_content = f.read(1500)
+                            workspace_context += f"\n=== File: {os.path.basename(c)} ===\n{readme_content}\n"
+                            break
+                        except Exception:
+                            pass
+
+        # If user asks for file list or what files exist
+        if any(w in user_lower for w in ["list file", "files in", "what files", "structure"]):
+            try:
+                tree = []
+                for root, dirs, files in os.walk(workspace_dir):
+                    dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ["node_modules", ".venv", "__pycache__"]]
+                    for file in files:
+                        if not file.startswith("."):
+                            rel = os.path.relpath(os.path.join(root, file), workspace_dir)
+                            tree.append(rel)
+                    if len(tree) >= 40:
+                        break
+                if tree:
+                    workspace_context += "\n=== Workspace Files Available ===\n" + "\n".join(tree[:40]) + "\n"
+            except Exception:
+                pass
+
+        # If workspace context was found, ground the system message
+        augmented_messages = list(messages)
+        if workspace_context:
+            has_system = any(m.get("role") == "system" for m in augmented_messages)
+            grounding_instruction = f"You are VELIKY Sovereign Agent. You have direct read access to files on the laptop host. Here is the relevant workspace file data:\n{workspace_context}\nAnswer the user's inquiry directly using this real file content."
+            if has_system:
+                for idx, m in enumerate(augmented_messages):
+                    if m.get("role") == "system":
+                        augmented_messages[idx] = {
+                            "role": "system",
+                            "content": f"{m.get('content', '')}\n\n{grounding_instruction}"
+                        }
+                        break
+            else:
+                augmented_messages.insert(0, {"role": "system", "content": grounding_instruction})
+
+        prompt_text = engine.format_input(augmented_messages, tools)
         loop = asyncio.get_running_loop()
         raw_output, input_tokens, output_tokens = await loop.run_in_executor(
             None, engine.generate, prompt_text, max_tokens, temperature
@@ -203,6 +278,11 @@ def create_app(engine: ModelEngine) -> Starlette:
 
         clean_text, tool_calls = parse_tool_calls(raw_output)
         finish_reason = "tool_calls" if tool_calls else "stop"
+
+        print("\n" + "-"*60, flush=True)
+        print(f"🤖 [MODEL RESPONSE GENERATED] -> Dispatching to Mobile & Client", flush=True)
+        print(clean_text or raw_output, flush=True)
+        print("-"*60 + "\n", flush=True)
 
         if stream:
             async def event_generator():

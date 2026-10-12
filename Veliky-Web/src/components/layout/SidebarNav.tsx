@@ -29,19 +29,10 @@ interface NavEntry {
 }
 
 const NAV_ITEMS: NavEntry[] = [
-  { id: 'agent', label: 'Sovereign Query & Agent', icon: Sparkles, section: 'SOVEREIGN INTELLIGENCE', badge: 'INQUIRY' },
-  { id: 'overview', label: 'Command Center', icon: LayoutDashboard, badge: 'DEFCON 2' },
-  { id: 'detection', label: 'Reasoning Ledger', icon: Scan, badge: '8 STAGES' },
-  { id: 'workspace', label: 'Obsidian Knowledge Vault', icon: BookOpen, badge: 'VAULT' },
-  { id: 'graph', label: 'Knowledge Graph', icon: Share2 },
-  { id: 'assets', label: 'Infrastructure Assets', icon: Layers, section: 'DEFENSE & MONITORING', badge: '10' },
-  { id: 'incidents', label: 'Incident Containment Room', icon: AlertTriangle, badge: '2', badgeType: 'alert' },
-  { id: 'monitoring', label: 'FFT Telemetry & Spectrum', icon: Activity },
-  { id: 'threats', label: 'MITRE ICS Threat Matrix', icon: Crosshair, badge: '4' },
-  { id: 'reports', label: 'Forensic Compliance Dossiers', icon: FileText, section: 'GOVERNANCE & AUDIT' },
-  { id: 'analytics', label: 'Reliability & RUL Analytics', icon: BarChart3 },
-  { id: 'activity', label: 'Tamper-Evident Audit Ledger', icon: Lock, badge: 'SHA-256' },
-  { id: 'settings', label: 'Sovereign Air-Gap Policies', icon: Settings2 },
+  { id: 'agent', label: 'Query & Model Chat', icon: Sparkles },
+  { id: 'graph', label: 'Obsidian Graph', icon: Share2 },
+  { id: 'workspace', label: 'Files & Vault', icon: BookOpen },
+  { id: 'settings', label: 'Settings & Models', icon: Settings2 },
 ]
 
 export function SidebarNav() {

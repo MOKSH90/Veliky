@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from 'react'
-import { Network, Files, Play, Pause, RotateCcw, Download, Layers, ShieldCheck, Sparkles } from 'lucide-react'
+import { Network, Files, Play, Pause, RotateCcw, Download, Layers, ShieldCheck, Sparkles, Upload } from 'lucide-react'
 import { useEdithStore } from '../../store/useEdithStore'
 import { GraphCanvas, type CanvasGraphNode, type CanvasGraphEdge } from './GraphCanvas'
 import { GraphSettings } from './GraphSettings'
@@ -20,6 +20,7 @@ export function GraphView() {
   const wikilinkNodes = useEdithStore((s) => s.wikilinkNodes)
   const wikilinkEdges = useEdithStore((s) => s.wikilinkEdges)
   const reindexWikilinks = useEdithStore((s) => s.reindexWikilinks)
+  const importVaultFiles = useEdithStore((s) => s.importVaultFiles)
   const graphSettings = useEdithStore((s) => s.graphSettings)
   const setGraphSettings = useEdithStore((s) => s.setGraphSettings)
   const user = useEdithStore((s) => s.authUser)
@@ -175,6 +176,39 @@ export function GraphView() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             type="button"
+            onClick={() => {
+              const el = document.getElementById('graph-upload-input')
+              if (el) (el as HTMLInputElement).click()
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              color: '#34d399',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            title="Upload Files/Documents to Graph"
+          >
+            <Upload size={12} />
+            <span>Upload Files</span>
+          </button>
+          <input
+            id="graph-upload-input"
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              if (e.target.files) importVaultFiles(e.target.files)
+            }}
+          />
+          <button
+            type="button"
             onClick={handleExportJson}
             style={{
               display: 'flex',
@@ -198,7 +232,21 @@ export function GraphView() {
       </div>
 
       {/* Main Canvas Area */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div 
+        style={{ 
+          flex: 1, 
+          position: 'relative', 
+          overflow: 'hidden',
+          outline: isPlaying ? 'none' : undefined
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault()
+          if (e.dataTransfer.files?.length) {
+            importVaultFiles(e.dataTransfer.files)
+          }
+        }}
+      >
         <GraphCanvas nodes={filteredNodes} edges={filteredEdges} />
         <GraphSettings />
       </div>

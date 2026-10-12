@@ -91,7 +91,9 @@ fun VelikyHeader(userName: String = "Moksh") {
 @Composable
 fun SearchGoalBar(
     query: String,
-    onQueryChange: (String) -> Unit
+    onQueryChange: (String) -> Unit,
+    isLoading: Boolean = false,
+    onSearchSubmit: () -> Unit = {}
 ) {
     OutlinedTextField(
         value = query,
@@ -106,9 +108,31 @@ fun SearchGoalBar(
                 tint = MaterialTheme.colorScheme.primary
             )
         },
+        trailingIcon = {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else if (query.isNotBlank()) {
+                IconButton(onClick = onSearchSubmit) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Submit Query",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        },
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            imeAction = androidx.compose.ui.text.input.ImeAction.Send
+        ),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+            onSend = { onSearchSubmit() }
+        ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
-            //unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             focusedTextColor = MaterialTheme.colorScheme.onSurface,

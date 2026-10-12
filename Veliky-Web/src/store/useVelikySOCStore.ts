@@ -201,6 +201,7 @@ interface VelikySOCStore {
   editMemory: (id: string, title: string) => void
   selectWorkspace: (workspace: Workspace) => void
   loadLocalWorkspace: (files: FileList) => Promise<void>
+  importVaultFiles: (files: File[] | FileList) => Promise<void>
   setProfileOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setProjectSwitcherOpen: (open: boolean) => void
@@ -235,8 +236,8 @@ const initialGraph = buildWikilinkGraph(velikyVaultTree)
 const initialFile = velikyVaultTree[0]?.children?.[0] ?? null
 
 export const useVelikyStore = create<VelikySOCStore>((set, get) => ({
-  // Core navigation - default to Command Center overview
-  activeView: 'overview',
+  // Core navigation - default to Sovereign Query & Agent view
+  activeView: 'agent',
   setActiveView: (activeView) => set({ activeView }),
   stage: 'workspace',
   setStage: (stage) => set({ stage }),
@@ -297,7 +298,7 @@ export const useVelikyStore = create<VelikySOCStore>((set, get) => ({
   auditRecords: AUDIT_LEDGER_RECORDS,
 
   isAnalyzing: false,
-  activeModel: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
+  activeModel: 'Qwen/Qwen2.5-1.5B-Instruct',
   setActiveModel: (activeModel) => set({ activeModel }),
   activeAgentPersona: 'investigator',
   setActiveAgentPersona: (activeAgentPersona) => set({ activeAgentPersona, activeAgent: activeAgentPersona }),
@@ -739,7 +740,92 @@ export const useVelikyStore = create<VelikySOCStore>((set, get) => ({
   forgetMemory: (id: string) => set(s => ({ memory: s.memory.filter(m => m.id !== id) })),
   editMemory: (id: string, title: string) => set(s => ({ memory: s.memory.map(m => m.id === id ? { ...m, title } : m) })),
   selectWorkspace: (currentWorkspace) => set({ currentWorkspace }),
-  loadLocalWorkspace: async () => {},
+  loadLocalWorkspace: async (files: FileList) => {
+    await get().importVaultFiles(files)
+  },
+  importVaultFiles: async (fileList: File[] | FileList) => {
+    const filesArray = Array.from(fileList)
+    if (!filesArray.length) return
+
+    const { files, authUser } = get()
+    const newFileNodes: FileNode[] = []
+
+    for (const file of filesArray) {
+      let content = ''
+      try {
+        content = await file.text()
+      } catch {
+        content = `# ${file.name}\n\n[Binary or unreadable file]`
+      }
+
+      // Preserve relative path if uploaded via directory upload, else place in root or Documents
+      const relativePath = (file as any).webkitRelativePath || file.name
+      const normalizedPath = relativePath.replace(/^Sentinel-Vault\//, '').replace(/^vault\//, '')
+      const fileName = file.name
+      const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : ''
+      const language = ext === 'md' ? 'markdown' : ext === 'json' ? 'json' : ext === 'py' ? 'python' : ext === 'ts' || ext === 'tsx' ? 'typescript' : 'plaintext'
+
+      const node: FileNode = {
+        name: fileName,
+        type: 'file',
+        path: normalizedPath,
+        language,
+        content,
+        size: file.size,
+        clearance: authUser?.clearance || 'INTERNAL',
+        trustLevel: 'source-document',
+        timestamp: new Date().toISOString()
+      }
+      newFileNodes.push(node)
+    }
+
+    // Merge new file nodes into the existing tree
+    const updatedFiles = [...files]
+    for (const newNode of newFileNodes) {
+      const parts = newNode.path.split('/')
+      if (parts.length === 1) {
+        // Root file: replace if exists or append
+        const existingIdx = updatedFiles.findIndex(f => f.path === newNode.path)
+        if (existingIdx >= 0) {
+          updatedFiles[existingIdx] = newNode
+        } else {
+          updatedFiles.push(newNode)
+        }
+      } else {
+        // Nested path: find or build folders
+        let currentLevel = updatedFiles
+        for (let i = 0; i < parts.length - 1; i++) {
+          const folderName = parts[i]
+          const folderPath = parts.slice(0, i + 1).join('/')
+          let folderNode = currentLevel.find(f => f.name === folderName && f.type === 'folder')
+          if (!folderNode) {
+            folderNode = {
+              name: folderName,
+              type: 'folder',
+              path: folderPath,
+              children: []
+            }
+            currentLevel.push(folderNode)
+          }
+          if (!folderNode.children) folderNode.children = []
+          currentLevel = folderNode.children
+        }
+        const existingIdx = currentLevel.findIndex(f => f.path === newNode.path)
+        if (existingIdx >= 0) {
+          currentLevel[existingIdx] = newNode
+        } else {
+          currentLevel.push(newNode)
+        }
+      }
+    }
+
+    set({ files: updatedFiles })
+    if (newFileNodes.length > 0) {
+      get().openFileByPath(newFileNodes[0].path)
+    }
+    // Reindex Obsidian graph with the newly uploaded file nodes & edges
+    get().reindexWikilinks()
+  },
   setProfileOpen: (profileOpen) => set({ profileOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setProjectSwitcherOpen: (projectSwitcherOpen) => set({ projectSwitcherOpen }),

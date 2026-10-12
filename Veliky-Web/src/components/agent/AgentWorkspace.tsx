@@ -211,39 +211,22 @@ export function AgentWorkspace() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 28px',
+          padding: '12px 24px',
           background: 'var(--soc-bg-surface)',
-          backdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--soc-border-subtle)',
           zIndex: 10,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ padding: '6px', borderRadius: '6px', background: 'var(--soc-primary-subtle)', color: 'var(--soc-primary)' }}>
+          <div style={{ padding: '6px', borderRadius: '6px', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
             <Bot size={18} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', color: 'var(--soc-text-high)' }}>
-                SOVEREIGN INQUIRY & AGENT CONSOLE
-              </h2>
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  fontFamily: 'monospace',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  color: 'var(--soc-emerald)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                }}
-              >
-                SIH PS #26117
-              </span>
-            </div>
+            <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--soc-text-high)' }}>
+              Model Inference Console
+            </h2>
             <span style={{ fontSize: '11px', color: 'var(--soc-text-muted)' }}>
-              Engine: <strong style={{ color: 'var(--soc-text-high)' }}>{activeModel.split('/')[1] || activeModel}</strong> | Clearance: <strong style={{ color: 'var(--soc-primary)' }}>{authUser?.clearance || 'CONFIDENTIAL'}</strong> | Egress: <strong style={{ color: 'var(--soc-emerald)' }}>0.00 KB/s (Air-Gapped)</strong>
+              Model: <strong style={{ color: '#34d399' }}>{activeModel}</strong> · Online
             </span>
           </div>
         </div>
@@ -309,144 +292,65 @@ export function AgentWorkspace() {
                 width: '100%',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '40px' }}>
                 <div
                   style={{
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: 'var(--soc-primary-subtle)',
-                    border: '1px solid var(--soc-primary)',
-                    boxShadow: '0 0 24px var(--soc-primary-glow)',
+                    padding: '14px',
+                    borderRadius: '16px',
+                    background: 'rgba(99, 102, 241, 0.1)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
                   }}
                 >
-                  <Sparkles size={28} style={{ color: 'var(--soc-primary)' }} />
+                  <Sparkles size={32} style={{ color: '#818cf8' }} />
                 </div>
-                <h1 style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--soc-text-high)', margin: '4px 0 0 0', letterSpacing: '0.02em' }}>
-                  Sovereign Industrial Investigation Engine
+                <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#f8fafc', margin: '8px 0 0 0' }}>
+                  What would you like to ask or investigate?
                 </h1>
-                <p style={{ fontSize: '13px', color: 'var(--soc-text-muted)', maxWidth: '660px', margin: 0, lineHeight: 1.6 }}>
-                  Autonomous multimodal reasoning over P&ID engineering schematics, inspection PDFs, maintenance spreadsheets, and ISO 10816-3 standards with 0-cloud egress.
+                <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '520px', margin: 0 }}>
+                  Enter any inquiry below or select a quick starter prompt to query your local model.
                 </p>
               </div>
 
-              {/* Investigation Scope Badges */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <span className="soc-badge badge-dim" style={{ fontSize: '10px' }}>
-                  Target: <strong>Centrifugal Slurry Pump P-204</strong>
-                </span>
-                <span className="soc-badge badge-dim" style={{ fontSize: '10px' }}>
-                  Standard: <strong>ISO 10816-3 Category 2</strong>
-                </span>
-                <span className="soc-badge badge-sovereign" style={{ fontSize: '10px' }}>
-                  Execution: <strong>Deterministic Python Sandbox (SymPy)</strong>
-                </span>
-                <span className="soc-badge badge-normal" style={{ fontSize: '10px' }}>
-                  Clearance: <strong>{authUser?.role?.toUpperCase() || 'OPERATOR'}</strong>
-                </span>
-              </div>
-
-              {/* Quick Query Pills / Dummy Queries */}
-              <div style={{ width: '100%', maxWidth: '920px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--soc-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    ⚡ Instant Quick Inquiries & Dummy Queries
-                  </span>
-                  <span style={{ fontSize: '10px', color: 'var(--soc-text-dim)' }}>1-Click instant test</span>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
-                  {QUICK_QUERY_PILLS.map((pill) => (
-                    <button
-                      key={pill.id}
-                      type="button"
-                      onClick={() => submit(pill.prompt)}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                        fontSize: '11px',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 600,
-                        background: 'var(--soc-bg-surface)',
-                        color: 'var(--soc-text-high)',
-                        border: `1px solid ${pill.color}40`,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = pill.color
-                        e.currentTarget.style.boxShadow = `0 0 12px ${pill.color}30`
-                        e.currentTarget.style.transform = 'translateY(-1px)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = `${pill.color}40`
-                        e.currentTarget.style.boxShadow = 'none'
-                        e.currentTarget.style.transform = 'none'
-                      }}
-                    >
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: pill.color }} />
-                      <span>{pill.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* The Command Input Bar */}
-              <div style={{ width: '100%', maxWidth: '920px' }}>
+              <div style={{ width: '100%', maxWidth: '820px', marginTop: '16px' }}>
                 <CommandInput />
               </div>
 
-              {/* 4 Dedicated SIH #26117 Scenario Inquiry Cards */}
-              <div style={{ width: '100%', maxWidth: '920px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span
+              {/* Quick Query Pills */}
+              <div style={{ width: '100%', maxWidth: '820px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '10px' }}>
+                {QUICK_QUERY_PILLS.map((pill) => (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => submit(pill.prompt)}
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
                       fontSize: '11px',
-                      fontWeight: 700,
                       fontFamily: 'var(--font-mono)',
-                      color: 'var(--soc-text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      fontWeight: 500,
+                      background: 'var(--soc-bg-surface)',
+                      color: 'var(--soc-text-high)',
+                      border: `1px solid ${pill.color}35`,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = pill.color
+                      e.currentTarget.style.background = `${pill.color}15`
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = `${pill.color}35`
+                      e.currentTarget.style.background = 'var(--soc-bg-surface)'
                     }}
                   >
-                    1-Click Verified Demonstration Scenarios (SIH #26117)
-                  </span>
-                  <span style={{ fontSize: '10px', color: 'var(--soc-text-dim)' }}>Click to dispatch autonomous investigation</span>
-                </div>
-
-                <div className="inquiry-scenario-grid">
-                  {INDUSTRIAL_SCENARIOS.map((scenario) => (
-                    <div
-                      key={scenario.id}
-                      className="inquiry-scenario-card"
-                      onClick={() => submit(scenario.prompt)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span 
-                          className="inquiry-card-tag" 
-                          style={{ color: scenario.tagColor }}
-                        >
-                          ● {scenario.tag}
-                        </span>
-                        <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--soc-text-dim)' }}>
-                          [{scenario.targetAsset}]
-                        </span>
-                      </div>
-                      <h4 className="inquiry-card-title">{scenario.title}</h4>
-                      <p className="inquiry-card-desc">{scenario.prompt.slice(0, 110)}...</p>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', borderTop: '1px solid var(--soc-border-subtle)', paddingTop: '6px' }}>
-                        <span style={{ fontSize: '10px', color: 'var(--soc-text-dim)', fontFamily: 'var(--font-mono)' }}>
-                          {scenario.scope}
-                        </span>
-                        <span style={{ fontSize: '11px', color: 'var(--soc-primary)', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
-                          <span>Run</span>
-                          <ArrowRight size={11} />
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: pill.color }} />
+                    <span>{pill.label}</span>
+                  </button>
+                ))}
               </div>
             </motion.div>
           ) : (

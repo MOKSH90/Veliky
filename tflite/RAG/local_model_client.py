@@ -2,6 +2,7 @@
 from __future__ import annotations
 import ipaddress
 import json
+import socket
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
@@ -16,17 +17,35 @@ class NoRedirect(HTTPRedirectHandler):
 class LocalModelClient:
     """The model may reason locally; generated code itself has no network access."""
 
-    def __init__(self, endpoint: str, model: str, timeout: float = 90) -> None:
+    def __init__(self, endpoint: str, model: str, timeout: float | None = None) -> None:
+        if timeout is None:
+            import os
+            timeout = float(os.environ.get("VELIKY_TIMEOUT", 300))
         url = urlsplit(endpoint)
+        host = url.hostname or ''
+        if url.scheme != 'http' or url.username or url.password or url.query or url.fragment:
+            raise ValueError('Inference endpoint must be numeric loopback or private network HTTP without credentials/query')
+        if host == 'localhost':
+            raise ValueError('Inference endpoint must use numeric loopback or private container hostname, not localhost')
+
+        is_allowed = False
         try:
-            loopback = ipaddress.ip_address(url.hostname or '').is_loopback
+            addr = ipaddress.ip_address(host)
+            is_allowed = addr.is_loopback or addr.is_private
         except ValueError:
-            loopback = False
-        if url.scheme != 'http' or not loopback or url.username or url.password or url.query or url.fragment:
-            raise ValueError('Inference endpoint must be numeric loopback HTTP without credentials/query')
+            try:
+                resolved = socket.gethostbyname(host)
+                addr = ipaddress.ip_address(resolved)
+                is_allowed = addr.is_loopback or addr.is_private
+            except (socket.gaierror, socket.herror):
+                if host and ('.' not in host or host.endswith('.local') or host.endswith('.internal')):
+                    is_allowed = True
+
+        if not is_allowed:
+            raise ValueError('Inference endpoint must be numeric loopback or private network HTTP without credentials/query')
         self.endpoint, self.model, self.timeout = endpoint.rstrip('/'), model, timeout
 
-    def complete(self, messages: list[dict], max_tokens: int = 768, tools: list[dict] | None = None) -> dict:
+    def complete(self, messages: list[dict], max_tokens: int = 384, tools: list[dict] | None = None) -> dict:
         """Return a genuine model message, never synthesize tool calls on failure."""
         body = {'model': self.model, 'messages': messages, 'temperature': 0, 'max_tokens': max_tokens, 'stream': False}
         if tools:

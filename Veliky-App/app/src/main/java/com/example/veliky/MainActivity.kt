@@ -16,6 +16,7 @@ import com.example.veliky.ui.theme.VelikyTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        VelikyClient.init(applicationContext)
         enableEdgeToEdge()
         setContent {
             VelikyTheme {

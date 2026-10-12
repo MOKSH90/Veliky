@@ -22,11 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.coroutines.launch
 
+import androidx.compose.material.icons.filled.SmartToy
+
 enum class VelikyTab(
     val title: String,
     val icon: ImageVector
 ) {
     HOME("Home", Icons.Default.Home),
+    CHAT("AI Chat", Icons.Default.SmartToy),
     AGENTS("Agents", Icons.Default.Shield),
     CONNECT("Connect", Icons.Default.Router),
     PROFILE("Profile", Icons.Default.Person)
@@ -82,9 +85,10 @@ fun MainContainer() {
         ) { page ->
             when (page) {
                 0 -> HomePage()
-                1 -> AgentStudioPage()
-                2 -> ConnectionPage()
-                3 -> ProfilePage()
+                1 -> ChatPage()
+                2 -> AgentStudioPage()
+                3 -> ConnectionPage()
+                4 -> ProfilePage()
             }
         }
     }

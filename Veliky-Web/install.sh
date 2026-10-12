@@ -82,8 +82,37 @@ PYTHON_BOOTSTRAP="${VELIKY_PYTHON:-python3}"
 if [[ ! -x "$BACKEND_DIR/.venv/bin/python" ]]; then
     "$PYTHON_BOOTSTRAP" -m venv "$BACKEND_DIR/.venv"
 fi
-"$BACKEND_DIR/.venv/bin/python" -m pip install -r "$BACKEND_DIR/RAG/requirements-harness.txt"
-echo "📦 Installing VELIKY dependencies..."
+echo "📦 Installing VELIKY backend dependencies..."
+"$BACKEND_DIR/.venv/bin/python" -m pip install -q -r "$BACKEND_DIR/RAG/requirements-harness.txt"
+
+echo "🧠 Installing deep learning and inference engine (PyTorch, Transformers, Accelerate)..."
+"$BACKEND_DIR/.venv/bin/python" -m pip install -q --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu || "$BACKEND_DIR/.venv/bin/python" -m pip install -q torch
+"$BACKEND_DIR/.venv/bin/python" -m pip install -q transformers accelerate sentence-transformers
+
+echo "⬇️  Downloading and pre-caching Qwen/Qwen2.5-1.5B-Instruct model weights & embeddings..."
+"$BACKEND_DIR/.venv/bin/python" -c "
+import sys
+try:
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    model_name = 'Qwen/Qwen2.5-1.5B-Instruct'
+    print(f'   • Fetching tokenizer for {model_name}...')
+    AutoTokenizer.from_pretrained(model_name)
+    print(f'   • Fetching model weights for {model_name}...')
+    AutoModelForCausalLM.from_pretrained(model_name)
+    print('   ✅ Model weights cached successfully!')
+except Exception as e:
+    print('   ⚠️ Warning caching model:', e)
+
+try:
+    from sentence_transformers import SentenceTransformer
+    print('   • Fetching RAG embedding model...')
+    SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    print('   ✅ Embedding model cached successfully!')
+except Exception as e:
+    pass
+"
+
+echo "📦 Installing VELIKY Web dependencies..."
 npm install --silent
 
 echo "⚡ Linking 'veliky' command to system PATH..."

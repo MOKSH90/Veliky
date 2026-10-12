@@ -161,6 +161,15 @@ class VelikyCLI:
         self.agent = agent
         self.thinking = thinking
         self.history: list[dict] = []
+        if not endpoint:
+            candidate = os.environ.get("VELIKY_REASONING_ENDPOINT", "http://127.0.0.1:8000/v1")
+            try:
+                import urllib.request
+                with urllib.request.urlopen(candidate.rstrip("/") + "/models", timeout=1) as resp:
+                    if resp.status == 200:
+                        endpoint = candidate
+            except Exception:
+                pass
         self.endpoint = endpoint
         self.service = VelikyService(BridgeConfig(role=role or os.environ.get("VELIKY_ROLE", "analyst"), retrieval=retrieval)) if VelikyService else None
         if self.service is None:
@@ -216,11 +225,18 @@ class VelikyCLI:
 
         def _resolve_path(raw: str) -> Path:
             clean = raw.strip(" `\"'\t\r\n")
+            if clean.lower() in ("sentinel", "sentinel/", ".", "./", "workspace", "repo"):
+                return Path.cwd().resolve()
             p = Path(clean).expanduser()
-            return p.resolve() if p.is_absolute() else (Path.cwd() / p).resolve()
+            if p.is_absolute():
+                return p.resolve()
+            # If current cwd has this folder name, return cwd
+            if Path.cwd().name.lower() == clean.lower():
+                return Path.cwd().resolve()
+            return (Path.cwd() / p).resolve()
 
-        # 1. Match <read_file path="..."/>
-        read_matches = re.findall(r'<read_file\s+path=["\']([^"\']+)["\']\s*/?>', response)
+        # 1. Match <read_file path="..."/> or <read.../>
+        read_matches = re.findall(r'<(?:read_file|read|cat)\s+path=["\']([^"\']+)["\']\s*/?>', response)
         for filepath in read_matches:
             has_tools = True
             try:
@@ -234,8 +250,8 @@ class VelikyCLI:
             except Exception as exc:
                 tool_outputs.append(f"<tool_result tool=\"read_file\" path=\"{filepath}\">Error reading file: {exc}</tool_result>")
 
-        # 2. Match <list_dir path="..."/>
-        dir_matches = re.findall(r'<list_dir\s+path=["\']([^"\']+)["\']\s*/?>', response)
+        # 2. Match <list_dir path="..."/> or <reading_directory path="..."/>
+        dir_matches = re.findall(r'<(?:list_dir|reading_directory|dir_list|ls)\s+path=["\']([^"\']+)["\']\s*/?>', response)
         for dirpath in dir_matches:
             has_tools = True
             try:
@@ -391,54 +407,27 @@ class VelikyCLI:
                 top_items = [f.name for f in target_dir.iterdir() if not f.name.startswith(".")]
                 workspace_context += f"Root Structure: {', '.join(sorted(top_items)[:40])}\n\n"
 
-                # 3b. Read Top-Level README and architecture documentation FIRST
+                # 3b. Read Top-Level README FIRST
                 doc_candidates = [
-                    target_dir / "readme.md", target_dir / "README.md", target_dir / "Readme.md",
-                    target_dir / "ARCHITECTURE.md", target_dir / "connection.md", target_dir / "API.md"
+                    target_dir / "readme.md", target_dir / "README.md", target_dir / "Readme.md"
                 ]
                 for doc in doc_candidates:
                     if doc.exists() and doc.is_file():
                         try:
                             rel_path = doc.relative_to(target_dir)
-                            text = doc.read_text(encoding="utf-8", errors="ignore")[:3000]
+                            text = doc.read_text(encoding="utf-8", errors="ignore")[:1500]
                             workspace_context += f"=== DOCUMENT: {rel_path} ===\n{text}\n\n"
                             read_files.add(doc.resolve())
                             print(f"\033[90m📄 [Workspace Inspector] Read primary document: {rel_path}\033[0m", flush=True)
+                            break
                         except Exception:
                             pass
 
-                # 3c. Inspect Subdirectories for READMEs and Manifests
-                manifest_names = ("package.json", "docker-compose.yml", "docker-compose.yaml", "build.gradle.kts", "build.gradle", "requirements.txt", "pyproject.toml", "Cargo.toml", "go.mod", "API.md", "readme.md", "README.md")
+                # 3c. Inspect Subdirectories summary
                 subdirs = [d for d in target_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
-                for subdir in subdirs[:6]:
+                for subdir in subdirs[:5]:
                     sub_items = [f.name for f in subdir.iterdir() if not f.name.startswith(".")]
-                    workspace_context += f"Module Directory [{subdir.name}]: {', '.join(sorted(sub_items)[:25])}\n"
-                    for m_name in manifest_names:
-                        m_path = subdir / m_name
-                        if m_path.exists() and m_path.is_file() and m_path.resolve() not in read_files:
-                            try:
-                                text = m_path.read_text(encoding="utf-8", errors="ignore")[:1500]
-                                rel_path = m_path.relative_to(target_dir)
-                                workspace_context += f"=== Sub-Module File ({rel_path}) ===\n{text}\n\n"
-                                read_files.add(m_path.resolve())
-                            except Exception:
-                                pass
-
-                # 3d. Fallback rglob for any additional .md documentation
-                if len(read_files) < 4:
-                    for doc_file in workspace_files(target_dir, "*.md"):
-                        if len(read_files) >= 5:
-                            break
-                        if any(x in doc_file.parts for x in ("node_modules", ".git", "build", "dist", ".agents", ".codex", ".idea")):
-                            continue
-                        if doc_file.resolve() not in read_files:
-                            try:
-                                rel_path = doc_file.relative_to(target_dir)
-                                text = doc_file.read_text(encoding="utf-8", errors="ignore")[:1500]
-                                workspace_context += f"=== DOCUMENT: {rel_path} ===\n{text}\n\n"
-                                read_files.add(doc_file.resolve())
-                            except Exception:
-                                pass
+                    workspace_context += f"Module [{subdir.name}]: {', '.join(sorted(sub_items)[:15])}\n"
 
             # 4. Automatically locate and read requested files/classes mentioned in prompt across project roots
             file_tokens = re.findall(r'\b[a-zA-Z0-9_\-.]+\.[a-zA-Z0-9_-]+\b', user_input) + re.findall(r'\b[A-Z][a-zA-Z0-9_]{3,}\b', user_input)
@@ -545,24 +534,24 @@ class VelikyCLI:
                         response = message.get("content")
                         if not isinstance(response, str) or not response.strip():
                             raise RuntimeError("Model server returned no text response")
-                        return
-                    import torch
-                    device = next(self._llm.parameters()).device
-                    prompt = self._tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-                    inputs = self._tokenizer(prompt, return_tensors="pt").to(device)
-                    with torch.no_grad():
-                        outputs = self._llm.generate(
-                            **inputs,
-                            max_new_tokens=400,
-                            do_sample=True,
-                            temperature=0.3,
-                            repetition_penalty=1.15,
-                            pad_token_id=self._tokenizer.eos_token_id,
-                        )
-                    in_len = inputs["input_ids"].shape[1]
-                    response = self._tokenizer.decode(outputs[0][in_len:], skip_special_tokens=True).strip()
-                else:
-                    raise RuntimeError("Model is unavailable")
+                    elif self._llm is not None:
+                        import torch
+                        device = next(self._llm.parameters()).device
+                        prompt = self._tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                        inputs = self._tokenizer(prompt, return_tensors="pt").to(device)
+                        with torch.no_grad():
+                            outputs = self._llm.generate(
+                                **inputs,
+                                max_new_tokens=400,
+                                do_sample=True,
+                                temperature=0.3,
+                                repetition_penalty=1.15,
+                                pad_token_id=self._tokenizer.eos_token_id,
+                            )
+                        in_len = inputs["input_ids"].shape[1]
+                        response = self._tokenizer.decode(outputs[0][in_len:], skip_special_tokens=True).strip()
+                    else:
+                        raise RuntimeError("Model is unavailable")
 
             if self.thinking and _rich_console and sys.stdout.isatty():
                 with _rich_console.status(f"[magenta]thinking (step {current_turn})...[/magenta]", spinner="dots"):
