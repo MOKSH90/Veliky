@@ -60,13 +60,52 @@ class ModelEngine:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
 
             logger.info("Loading model weights for %s on %s (%s)...", model_name, device, torch_dtype)
+            load_kwargs = {
+                "torch_dtype": self.dtype,
+                "trust_remote_code": False,
+                "low_cpu_mem_usage": True,
+            }
+            if device == "cuda":
+                free_mem_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                if free_mem_gb < 10.0 and ("7b" in model_name.lower() or "8b" in model_name.lower() or os.environ.get("LOAD_IN_4BIT", "1") == "1"):
+                    try:
+                        from transformers import BitsAndBytesConfig, AutoConfig
+                        load_kwargs["quantization_config"] = BitsAndBytesConfig(
+                            load_in_4bit=True,
+                            bnb_4bit_compute_dtype=torch.float16,
+                            bnb_4bit_quant_type="nf4",
+                            bnb_4bit_use_double_quant=True,
+                            llm_int8_enable_fp32_cpu_offload=True,
+                        )
+                        try:
+                            config = AutoConfig.from_pretrained(model_name, local_files_only=not not offline)
+                        except Exception:
+                            config = AutoConfig.from_pretrained(model_name)
+                        num_layers = getattr(config, "num_hidden_layers", 28)
+                        custom_device_map = {
+                            "model.embed_tokens": 0,
+                            "model.rotary_emb": 0,
+                            "model.norm": "cpu",
+                            "lm_head": "cpu",
+                        }
+                        gpu_layers = min(18, num_layers - 10)
+                        for i in range(num_layers):
+                            custom_device_map[f"model.layers.{i}"] = 0 if i < gpu_layers else "cpu"
+                        load_kwargs["device_map"] = custom_device_map
+                        logger.info("Enabling NF4 4-bit GPU acceleration with %d layers on RTX 4050 (~3.3 GB base VRAM) + %d layers on CPU", gpu_layers, num_layers - gpu_layers)
+                    except Exception as bnb_err:
+                        logger.warning("Could not enable 4-bit custom device_map: %s, falling back to auto", bnb_err)
+                        load_kwargs["device_map"] = "auto"
+                else:
+                    load_kwargs["device_map"] = "auto"
+            else:
+                load_kwargs["device_map"] = device
+
             try:
                 self.model = AutoModelForCausalLM.from_pretrained(
                     model_name,
-                    torch_dtype=self.dtype,
-                    device_map=device,
-                    trust_remote_code=False, local_files_only=True,
-                    low_cpu_mem_usage=True,
+                    local_files_only=True,
+                    **load_kwargs,
                 )
             except Exception:
                 if offline:
@@ -74,10 +113,8 @@ class ModelEngine:
                 logger.info("Local model weights not found, downloading %s...", model_name)
                 self.model = AutoModelForCausalLM.from_pretrained(
                     model_name,
-                    torch_dtype=self.dtype,
-                    device_map=device,
-                    trust_remote_code=False, local_files_only=False,
-                    low_cpu_mem_usage=True,
+                    local_files_only=False,
+                    **load_kwargs,
                 )
             self.model.eval()
             logger.info("Model %s successfully loaded into memory and ready for inference.", model_name)
@@ -124,7 +161,8 @@ class ModelEngine:
         if self.model is None or self.tokenizer is None:
             raise RuntimeError("Inference model is not loaded")
 
-        inputs = self.tokenizer(prompt_text, return_tensors="pt").to(self.device)
+        target_dev = "cuda:0" if self.device == "cuda" else (getattr(self.model, "device", None) or self.device)
+        inputs = self.tokenizer(prompt_text, return_tensors="pt").to(target_dev)
         input_len = inputs["input_ids"].shape[1]
 
         gen_kwargs = dict(
@@ -146,6 +184,37 @@ class ModelEngine:
         if self.tokenizer.eos_token and decoded.endswith(self.tokenizer.eos_token):
             decoded = decoded[:-len(self.tokenizer.eos_token)].rstrip()
         return decoded, input_len, output_len
+
+    def generate_stream(self, prompt_text: str, max_tokens: int = 2048, temperature: float = 0.2):
+        if self.model is None or self.tokenizer is None:
+            raise RuntimeError("Inference model is not loaded")
+
+        from transformers import TextIteratorStreamer
+        streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
+
+        target_dev = "cuda:0" if self.device == "cuda" else (getattr(self.model, "device", None) or self.device)
+        inputs = self.tokenizer(prompt_text, return_tensors="pt").to(target_dev)
+
+        gen_kwargs = dict(
+            **inputs,
+            max_new_tokens=max_tokens,
+            do_sample=temperature > 0.0,
+            temperature=max(temperature, 1e-4),
+            streamer=streamer,
+            pad_token_id=self.tokenizer.pad_token_id,
+            eos_token_id=self.tokenizer.eos_token_id,
+        )
+
+        def _worker():
+            with self._lock:
+                with torch.no_grad():
+                    self.model.generate(**gen_kwargs)
+
+        t = threading.Thread(target=_worker)
+        t.start()
+        for token_text in streamer:
+            yield token_text
+        t.join()
 
 
 def parse_tool_calls(text: str) -> tuple[str, list[dict[str, Any]]]:
@@ -216,7 +285,14 @@ def create_app(engine: ModelEngine) -> Starlette:
         # Auto-grounding: only inject if caller has NOT already provided workspace context
         workspace_context = ""
         user_lower = user_msg.lower()
-        workspace_dir = "/workspace" if os.path.exists("/workspace") else "/app"
+        workspace_candidates = [
+            os.environ.get("VELIKY_WORKSPACE"),
+            "/home/Frutus/Sentinel",
+            "/workspace",
+            "/app",
+            os.getcwd(),
+        ]
+        workspace_dir = next((d for d in workspace_candidates if d and os.path.exists(d)), os.getcwd())
         already_has_context = any("=== DOCUMENT:" in m.get("content", "") or "=== REQUESTED FILE" in m.get("content", "") or "=== File:" in m.get("content", "") for m in messages)
         
         if not already_has_context:
@@ -225,13 +301,14 @@ def create_app(engine: ModelEngine) -> Starlette:
                 candidates = [
                     os.path.join(workspace_dir, "README.md"),
                     os.path.join(workspace_dir, "readme.md"),
+                    "/home/Frutus/Sentinel/README.md",
                     "/app/README.md"
                 ]
                 for c in candidates:
                     if os.path.exists(c):
                         try:
                             with open(c, "r", encoding="utf-8", errors="ignore") as f:
-                                readme_content = f.read(1500)
+                                readme_content = f.read(3500)
                             workspace_context += f"\n=== File: {os.path.basename(c)} ===\n{readme_content}\n"
                             break
                         except Exception:
@@ -258,7 +335,7 @@ def create_app(engine: ModelEngine) -> Starlette:
         augmented_messages = list(messages)
         if workspace_context:
             has_system = any(m.get("role") == "system" for m in augmented_messages)
-            grounding_instruction = f"You are VELIKY Sovereign Agent. You have direct read access to files on the laptop host. Here is the relevant workspace file data:\n{workspace_context}\nAnswer the user's inquiry directly using this real file content."
+            grounding_instruction = f"You are VELIKY Sovereign Agent. The workspace repository directory on the laptop is named 'Sentinel' ({workspace_dir}), containing the VELIKY Sovereign Industrial AI Workbench codebase. You have direct read access to files on the laptop host. Here is the relevant workspace file data:\n{workspace_context}\nAnswer the user's inquiry directly using this real file content."
             if has_system:
                 for idx, m in enumerate(augmented_messages):
                     if m.get("role") == "system":
@@ -271,6 +348,65 @@ def create_app(engine: ModelEngine) -> Starlette:
                 augmented_messages.insert(0, {"role": "system", "content": grounding_instruction})
 
         prompt_text = engine.format_input(augmented_messages, tools)
+
+        if stream:
+            async def event_generator():
+                loop = asyncio.get_running_loop()
+                queue: asyncio.Queue[str | None] = asyncio.Queue()
+
+                def _stream_worker():
+                    try:
+                        for token_chunk in engine.generate_stream(prompt_text, max_tokens, temperature):
+                            loop.call_soon_threadsafe(queue.put_nowait, token_chunk)
+                    except Exception as e:
+                        logger.error("Streaming error: %s", e)
+                    finally:
+                        loop.call_soon_threadsafe(queue.put_nowait, None)
+
+                threading.Thread(target=_stream_worker, daemon=True).start()
+
+                first_chunk = True
+                while True:
+                    token_chunk = await queue.get()
+                    if token_chunk is None:
+                        break
+                    delta: dict[str, Any] = {"content": token_chunk}
+                    if first_chunk:
+                        delta["role"] = "assistant"
+                        first_chunk = False
+                    chunk = {
+                        "id": request_id,
+                        "object": "chat.completion.chunk",
+                        "created": created,
+                        "model": engine.model_name,
+                        "choices": [{
+                            "index": 0,
+                            "delta": delta,
+                            "finish_reason": None,
+                        }],
+                    }
+                    yield f"data: {json.dumps(chunk)}\n\n"
+
+                finish_chunk = {
+                    "id": request_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": engine.model_name,
+                    "choices": [{
+                        "index": 0,
+                        "delta": {},
+                        "finish_reason": "stop",
+                    }],
+                }
+                yield f"data: {json.dumps(finish_chunk)}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(
+                event_generator(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+            )
+
         loop = asyncio.get_running_loop()
         raw_output, input_tokens, output_tokens = await loop.run_in_executor(
             None, engine.generate, prompt_text, max_tokens, temperature
@@ -284,63 +420,13 @@ def create_app(engine: ModelEngine) -> Starlette:
         print(clean_text or raw_output, flush=True)
         print("-"*60 + "\n", flush=True)
 
-        if stream:
-            async def event_generator():
-                delta: dict[str, Any] = {"role": "assistant"}
-                if tool_calls:
-                    delta["tool_calls"] = [
-                        {"index": i, "id": tc["id"], "type": "function", "function": tc["function"]}
-                        for i, tc in enumerate(tool_calls)
-                    ]
-                else:
-                    delta["content"] = clean_text
+        msg_obj: dict[str, Any] = {"role": "assistant"}
+        if tool_calls:
+            msg_obj["tool_calls"] = tool_calls
+        if clean_text or not tool_calls:
+            msg_obj["content"] = clean_text
 
-                chunk1 = {
-                    "id": request_id,
-                    "object": "chat.completion.chunk",
-                    "created": created,
-                    "model": engine.model_name,
-                    "choices": [{
-                        "index": 0,
-                        "delta": delta,
-                        "finish_reason": None,
-                    }],
-                }
-                yield f"data: {json.dumps(chunk1)}\n\n"
-
-                # Final finish chunk
-                finish_chunk = {
-                    "id": request_id,
-                    "object": "chat.completion.chunk",
-                    "created": created,
-                    "model": engine.model_name,
-                    "choices": [{
-                        "index": 0,
-                        "delta": {},
-                        "finish_reason": finish_reason,
-                    }],
-                    "usage": {
-                        "prompt_tokens": input_tokens,
-                        "completion_tokens": output_tokens,
-                        "total_tokens": input_tokens + output_tokens,
-                    },
-                }
-                yield f"data: {json.dumps(finish_chunk)}\n\n"
-                yield "data: [DONE]\n\n"
-
-            return StreamingResponse(
-                event_generator(),
-                media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-            )
-        else:
-            msg_obj: dict[str, Any] = {"role": "assistant"}
-            if tool_calls:
-                msg_obj["tool_calls"] = tool_calls
-            if clean_text or not tool_calls:
-                msg_obj["content"] = clean_text
-
-            return JSONResponse({
+        return JSONResponse({
                 "id": request_id,
                 "object": "chat.completion",
                 "created": created,
@@ -369,7 +455,7 @@ def create_app(engine: ModelEngine) -> Starlette:
 
 def main():
     parser = argparse.ArgumentParser(description="Local OpenAI-compatible inference server for open-weight models.")
-    parser.add_argument("--model", default=os.environ.get("MODEL_NAME", "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"), help="Hugging Face model repository or local path")
+    parser.add_argument("--model", default=os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"), help="Hugging Face model repository or local path")
     parser.add_argument("--host", default=os.environ.get("SERVE_HOST", "0.0.0.0"), help="Bind host (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")), help="Bind port (default: 8000)")
     parser.add_argument("--device", default=os.environ.get("DEVICE", "auto"), choices=("cpu", "cuda", "auto"), help="Execution device")

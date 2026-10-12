@@ -57,3 +57,26 @@ class LocalModelClient:
         if len(raw) > 2 * 1024 * 1024:
             raise ValueError('Inference response exceeds 2 MiB')
         return json.loads(raw)['choices'][0]['message']
+
+    def stream_complete(self, messages: list[dict], max_tokens: int = 512, tools: list[dict] | None = None):
+        """Yield token text chunks as they are generated in real-time from the model server."""
+        body = {'model': self.model, 'messages': messages, 'temperature': 0, 'max_tokens': max_tokens, 'stream': True}
+        if tools:
+            body['tools'] = tools
+        request = Request(self.endpoint + '/chat/completions', data=json.dumps(body).encode(),
+                          headers={'Content-Type': 'application/json'})
+        with build_opener(ProxyHandler({}), NoRedirect()).open(request, timeout=self.timeout) as response:
+            for line in response:
+                line_str = line.decode('utf-8', errors='ignore').strip()
+                if line_str.startswith('data: '):
+                    payload = line_str[6:].strip()
+                    if payload == '[DONE]':
+                        break
+                    try:
+                        chunk = json.loads(payload)
+                        delta = chunk.get('choices', [{}])[0].get('delta', {})
+                        content = delta.get('content')
+                        if content:
+                            yield content
+                    except Exception:
+                        pass

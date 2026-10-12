@@ -14,8 +14,10 @@ services:
       dockerfile: docker/Dockerfile.model
     image: veliky-model-server:latest
     container_name: veliky-model-server
+    profiles:
+      - cpu-fallback
     environment:
-      - MODEL_NAME=Qwen/Qwen2.5-1.5B-Instruct
+      - MODEL_NAME=Qwen/Qwen2.5-7B-Instruct
       - SERVE_HOST=0.0.0.0
       - PORT=8000
       - DEVICE=auto
@@ -45,6 +47,8 @@ services:
       dockerfile: docker/Dockerfile.gateway
     image: veliky-gateway:latest
     container_name: veliky-gateway
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     cap_add:
       - SYS_ADMIN
     security_opt:
@@ -52,16 +56,16 @@ services:
     environment:
       - VELIKY_GATEWAY_HOST=0.0.0.0
       - VELIKY_GATEWAY_PORT=8766
-      - VELIKY_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,veliky-gateway,veliky-web,model-server
+      - VELIKY_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,veliky-gateway,veliky-web,model-server,host.docker.internal
       - VELIKY_ALLOW_ALL_HOSTS=1
-      - INFERENCE_ENDPOINT=http://model-server:8000/v1
-      - VELIKY_REASONING_ENDPOINT=http://model-server:8000/v1
-      - VELIKY_REASONING_MODEL=Qwen/Qwen2.5-1.5B-Instruct
-      - VELIKY_CODING_ENDPOINT=http://model-server:8000/v1
-      - VELIKY_CODING_MODEL=Qwen/Qwen2.5-1.5B-Instruct
-      - VELIKY_VISION_ENDPOINT=http://model-server:8000/v1
-      - VELIKY_VISION_MODEL=Qwen/Qwen2.5-1.5B-Instruct
-      - MODEL_NAME=Qwen/Qwen2.5-1.5B-Instruct
+      - INFERENCE_ENDPOINT=http://host.docker.internal:8000/v1
+      - VELIKY_REASONING_ENDPOINT=http://host.docker.internal:8000/v1
+      - VELIKY_REASONING_MODEL=Qwen/Qwen2.5-7B-Instruct
+      - VELIKY_CODING_ENDPOINT=http://host.docker.internal:8000/v1
+      - VELIKY_CODING_MODEL=Qwen/Qwen2.5-7B-Instruct
+      - VELIKY_VISION_ENDPOINT=http://host.docker.internal:8000/v1
+      - VELIKY_VISION_MODEL=Qwen/Qwen2.5-7B-Instruct
+      - MODEL_NAME=Qwen/Qwen2.5-7B-Instruct
       - VELIKY_RAG_DIR=/app/tflite/RAG
       - VAULT_DIR=/app/tflite/veliky_vault
       - VELIKY_STATE_DIR=/app/tflite/RAG/state
@@ -75,9 +79,6 @@ services:
       - ./tflite/veliky_vault:/app/tflite/veliky_vault
       - veliky_state:/app/tflite/RAG/state
       - veliky_data:/app/tflite/RAG/data
-    depends_on:
-      model-server:
-        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8766/health || exit 1"]
       interval: 10s

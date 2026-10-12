@@ -52,7 +52,7 @@ program
   .command('start')
   .alias('cli')
   .description('Launch VELIKY Sovereign Agent CLI (with /model, /agent, /thinking, /tools, /clear)')
-  .option('-m, --model <name>', 'Initial model name', process.env.VELIKY_REASONING_MODEL || process.env.MODEL_NAME || 'Qwen/Qwen2.5-1.5B-Instruct')
+  .option('-m, --model <name>', 'Initial model name', process.env.VELIKY_REASONING_MODEL || process.env.MODEL_NAME || 'Qwen/Qwen2.5-7B-Instruct')
   .option('--endpoint <url>', 'Use an existing local inference server', process.env.VELIKY_REASONING_ENDPOINT || 'http://127.0.0.1:8000/v1')
   .option('--no-thinking', 'Disable the thinking indicator')
   .option('--role <role>', 'Knowledge access role', process.env.VELIKY_ROLE || 'analyst')

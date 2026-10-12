@@ -385,7 +385,7 @@ def cmd_doctor(args: argparse.Namespace):
 def main():
     parser = argparse.ArgumentParser(prog="reinery", description="Reinery — Sovereign AI Workbench & Pipeline")
     parser.add_argument("--endpoint", default=os.environ.get("VELIKY_REASONING_ENDPOINT", os.environ.get("INFERENCE_ENDPOINT", "http://127.0.0.1:8000/v1")), help="OpenAI-compatible inference endpoint")
-    parser.add_argument("--model", default=os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")), help="Open-weight model identifier")
+    parser.add_argument("--model", default=os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")), help="Open-weight model identifier")
     parser.add_argument("--role", default=os.environ.get("VELIKY_ROLE", "analyst"), help="User role clearance level")
     parser.add_argument("--retrieval", default="hybrid", choices=("hybrid", "vault"), help="Retrieval backend")
 
@@ -393,7 +393,7 @@ def main():
 
     # Agent CLI (Full VELIKY Persona Interface with /model, /agent, /thinking, /tools)
     p_agent = subparsers.add_parser("agent", aliases=["start"], help="Start interactive VELIKY Agent CLI (/model, /agent, /thinking, /tools)")
-    p_agent.add_argument("--model", default=os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")), help="Initial model name")
+    p_agent.add_argument("--model", default=os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")), help="Initial model name")
     p_agent.add_argument("--agent", default="general", choices=("general", "code", "investigator", "sre", "researcher"), help="Initial agent persona")
     p_agent.add_argument("--no-thinking", action="store_true", help="Disable thinking mode")
     p_agent.set_defaults(func=cmd_agent)
@@ -432,8 +432,8 @@ def main():
     p_serve = subparsers.add_parser("serve", help="Start local open-weight model server")
     p_serve.add_argument("--host", default=os.environ.get("SERVE_HOST", "127.0.0.1"), help="Bind host (default: 127.0.0.1 or SERVE_HOST env)")
     p_serve.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
-    p_serve.add_argument("--device", default="cpu", choices=("cpu", "cuda"), help="Execution device")
-    p_serve.add_argument("--dtype", default="float32", choices=("float32", "bfloat16", "float16"), help="Torch datatype")
+    p_serve.add_argument("--device", default="cuda", choices=("cpu", "cuda"), help="Execution device")
+    p_serve.add_argument("--dtype", default="bfloat16", choices=("float32", "bfloat16", "float16"), help="Torch datatype")
     p_serve.set_defaults(func=cmd_serve)
 
     # Doctor

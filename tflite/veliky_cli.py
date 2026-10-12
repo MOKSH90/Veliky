@@ -72,7 +72,7 @@ try:
 except ImportError:
     _PROMPT_TOOLKIT_AVAILABLE = False
 
-DEFAULT_MODEL = os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct"))
+DEFAULT_MODEL = os.environ.get("VELIKY_REASONING_MODEL", os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"))
 AVAILABLE_MODELS = [
     "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
     "Qwen/Qwen2.5-7B-Instruct",
@@ -381,7 +381,12 @@ class VelikyCLI:
             # 2. Fuzzy directory name search (e.g. "legit directory", "legit folder", "analyze legit")
             if not target_dir and not workspace_context:
                 words = re.findall(r'\b[a-zA-Z0-9_-]{3,30}\b', user_input)
-                search_roots = [Path.cwd()]
+                search_roots = [
+                    Path.cwd(),
+                    Path.home(),
+                    Path.home() / "Sentinel",
+                    Path(__file__).resolve().parent.parent,
+                ]
                 ignored_words = {"the", "and", "for", "you", "can", "please", "directory", "folder", "project", "analyze", "check", "explain", "about", "what", "with", "this", "from"}
                 for word in words:
                     if word.lower() in ignored_words:
@@ -402,6 +407,7 @@ class VelikyCLI:
             # 3. Comprehensive Project Directory & Architecture Inspection
             if target_dir:
                 workspace_context += f"\n--- WORKSPACE PROJECT DIRECTORY: {target_dir.name} ({target_dir}) ---\n"
+                workspace_context += f"Project: {target_dir.name} (Codebase for VELIKY Sovereign Agentic AI Workbench)\n"
 
                 # 3a. Top-level files and subdirectories
                 top_items = [f.name for f in target_dir.iterdir() if not f.name.startswith(".")]
@@ -415,7 +421,7 @@ class VelikyCLI:
                     if doc.exists() and doc.is_file():
                         try:
                             rel_path = doc.relative_to(target_dir)
-                            text = doc.read_text(encoding="utf-8", errors="ignore")[:1500]
+                            text = doc.read_text(encoding="utf-8", errors="ignore")[:4000]
                             workspace_context += f"=== DOCUMENT: {rel_path} ===\n{text}\n\n"
                             read_files.add(doc.resolve())
                             print(f"\033[90m📄 [Workspace Inspector] Read primary document: {rel_path}\033[0m", flush=True)
@@ -425,7 +431,7 @@ class VelikyCLI:
 
                 # 3c. Inspect Subdirectories summary
                 subdirs = [d for d in target_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
-                for subdir in subdirs[:5]:
+                for subdir in subdirs[:10]:
                     sub_items = [f.name for f in subdir.iterdir() if not f.name.startswith(".")]
                     workspace_context += f"Module [{subdir.name}]: {', '.join(sorted(sub_items)[:15])}\n"
 
@@ -484,15 +490,21 @@ class VelikyCLI:
         agent_history = []
         final_response = ""
 
+        streamed = False
         while current_turn < max_agent_turns:
             current_turn += 1
             response = ""
 
             def _do_generate():
-                nonlocal response
+                nonlocal response, streamed
                 if not self.endpoint:
                     self.load_model_if_needed()
                 if self.endpoint or (self._llm is not None and self._tokenizer is not None):
+                    thought_directive = (
+                        "4. Cognitive Loop & Chain of Thought: Perform concise step-by-step reasoning inside <thinking>...</thinking> tags before giving your final response.\n"
+                        if self.thinking else
+                        "4. Immediate Direct Answer: Answer immediately and directly without any <thinking> tags.\n"
+                    )
                     system_prompt = (
                         f"You are VELIKY Sovereign Agent, an Autonomous Systems Architect and Lead Engineer running in {self.agent} mode.\n"
                         "You embody the directness, craftsmanship, and precision of Claude Code.\n\n"
@@ -500,7 +512,7 @@ class VelikyCLI:
                         "1. Direct & High-Signal: Begin answers immediately without conversational filler, greetings, or apologies.\n"
                         "2. Zero-Hallucination & Evidence-First Invariant: Ground every assertion in retrieved Knowledge Vault evidence or files. NEVER fabricate telemetry or code.\n"
                         "3. Wikilink Citations: Explicitly cite knowledge vault records using [[NoteName]] (e.g. [[Pump-P204]], [[Inspection-Report-62]], [[SOP-Pump-Maintenance]]).\n"
-                        "4. Cognitive Loop & Chain of Thought: Perform step-by-step reasoning inside <thinking>...</thinking> tags before giving your final response.\n"
+                        f"{thought_directive}"
                         "5. 4-Tier Verification Matrix: Validate (1) schema, (2) RBAC clearance, (3) evidence provenance, and (4) sandboxed arithmetic.\n\n"
                         "INSTRUCTIONS & AGENTIC TOOL SUITE:\n"
                         "You can inspect files, search code, write code, and run commands autonomously using XML tool tags:\n"
@@ -530,9 +542,25 @@ class VelikyCLI:
                         messages.extend([{"role": "assistant", "content": turn["assistant"]}, {"role": "user", "content": turn["tool_results"]}])
                     if self.endpoint:
                         from local_model_client import LocalModelClient
-                        message = LocalModelClient(self.endpoint, self.model).complete(messages)
-                        response = message.get("content")
-                        if not isinstance(response, str) or not response.strip():
+                        client = LocalModelClient(self.endpoint, self.model)
+                        collected = []
+                        header_printed = False
+                        try:
+                            for chunk in client.stream_complete(messages, max_tokens=512):
+                                if not header_printed:
+                                    print(f"\n\033[1;32mVELIKY Agent\033[0m: ", end="", flush=True)
+                                    header_printed = True
+                                    streamed = True
+                                sys.stdout.write(chunk)
+                                sys.stdout.flush()
+                                collected.append(chunk)
+                        except Exception:
+                            pass
+                        response = "".join(collected)
+                        if not response.strip():
+                            message = client.complete(messages, max_tokens=512)
+                            response = message.get("content", "")
+                        if not response.strip():
                             raise RuntimeError("Model server returned no text response")
                     elif self._llm is not None:
                         import torch
@@ -553,10 +581,10 @@ class VelikyCLI:
                     else:
                         raise RuntimeError("Model is unavailable")
 
-            if self.thinking and _rich_console and sys.stdout.isatty():
+            if not self.endpoint and self.thinking and _rich_console and sys.stdout.isatty():
                 with _rich_console.status(f"[magenta]thinking (step {current_turn})...[/magenta]", spinner="dots"):
                     _do_generate()
-            elif self.thinking:
+            elif not self.endpoint and self.thinking:
                 print(f"\033[1;35mthinking (step {current_turn})...\033[0m", flush=True)
                 _do_generate()
             else:
@@ -578,12 +606,15 @@ class VelikyCLI:
             final_response = "Tool-step limit reached. Last tool results:\n" + "\n".join(tool_outputs)
 
         elapsed = time.time() - t0
-        print(f"\n\033[1;32mVELIKY Agent\033[0m \033[90m({elapsed:.2f}s)\033[0m:", flush=True)
-        if _rich_console and sys.stdout.isatty():
-            _rich_console.print(Markdown(final_response))
+        if streamed:
+            print(f"\n\n\033[90m(completed in {elapsed:.2f}s)\033[0m\n", flush=True)
         else:
-            print(final_response, flush=True)
-        print()
+            print(f"\n\033[1;32mVELIKY Agent\033[0m \033[90m({elapsed:.2f}s)\033[0m:", flush=True)
+            if _rich_console and sys.stdout.isatty():
+                _rich_console.print(Markdown(final_response))
+            else:
+                print(final_response, flush=True)
+            print()
 
         self.history.append({"user": user_input, "assistant": final_response})
         return final_response
